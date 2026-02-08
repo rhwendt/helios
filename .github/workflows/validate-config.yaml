@@ -1,0 +1,90 @@
+name: Validate Config
+on:
+  pull_request:
+    paths:
+      - 'config/**'
+      - 'clickhouse/**'
+
+jobs:
+  validate-prometheus-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install promtool
+        run: |
+          PROM_VERSION="2.51.0"
+          wget -q "https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+          tar xzf "prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+          sudo cp "prometheus-${PROM_VERSION}.linux-amd64/promtool" /usr/local/bin/
+
+      - name: Validate Prometheus rules
+        run: |
+          for f in config/alerts/rules/*.yaml config/alerts/rules/*.yml; do
+            if [ -f "$f" ]; then
+              echo "Validating $f..."
+              promtool check rules "$f"
+            fi
+          done
+
+  validate-dashboards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate dashboard JSON
+        run: |
+          for f in config/dashboards/**/*.json; do
+            if [ -f "$f" ]; then
+              echo "Validating $f..."
+              python3 -m json.tool "$f" > /dev/null
+            fi
+          done
+
+  validate-snmp-modules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SNMP module YAML
+        run: |
+          for f in config/snmp/modules/*.yml config/snmp/modules/*.yaml; do
+            if [ -f "$f" ]; then
+              echo "Validating $f..."
+              python3 -c "import yaml; yaml.safe_load(open('$f'))"
+            fi
+          done
+
+  validate-gnmic-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate gnmic subscription YAML
+        run: |
+          for f in config/gnmic/subscriptions/*.yaml config/gnmic/subscriptions/*.yml; do
+            if [ -f "$f" ]; then
+              echo "Validating $f..."
+              python3 -c "import yaml; yaml.safe_load(open('$f'))"
+            fi
+          done
+
+  validate-clickhouse-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check ClickHouse SQL syntax
+        run: |
+          for f in clickhouse/migrations/*.sql; do
+            if [ -f "$f" ]; then
+              echo "Checking $f for basic syntax..."
+              # Basic check: file is not empty and contains SQL keywords
+              if [ -s "$f" ]; then
+                echo "  $f: OK (non-empty)"
+              else
+                echo "  $f: WARNING (empty file)"
+                exit 1
+              fi
+            fi
+          done

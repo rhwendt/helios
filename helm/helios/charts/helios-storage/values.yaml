@@ -1,0 +1,42 @@
+prometheus:
+  shards: 1
+  retention: 2h
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 8Gi
+
+global:
+  clusterName: helios
+  datacenter: dc1
+
+thanos:
+  query:
+    replicas: 2
+  store:
+    replicas: 2
+  compactor:
+    retention:
+      raw: 14d
+      fiveMin: 30d
+      oneHour: 90d
+  objstoreSecret:
+    external: false
+    storeRef: cluster-secret-store
+    remoteKey: helios/thanos-objstore
+    bucket: thanos
+    endpoint: minio.helios-storage.svc.cluster.local:9000
+    accessKey: ""
+    secretKey: ""
+    insecure: true
+
+minio:
+  replicas: 4
+  erasureCoding: true
+  buckets:
+    - name: thanos
+      policy: none
+      purge: false

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package helios.flows;
+
+option go_package = "github.com/rhwendt/helios/services/flow-enricher/internal/proto";
+
+// EnrichedFlow represents a network flow record after enrichment with
+// NetBox device metadata and MaxMind GeoIP data. This is the canonical
+// format consumed by ClickHouse via the Kafka engine table.
+message EnrichedFlow {
+  // Timestamp in milliseconds since Unix epoch
+  int64 timestamp_ms = 1;
+
+  enum FlowType {
+    UNKNOWN = 0;
+    NETFLOW_V5 = 1;
+    NETFLOW_V9 = 2;
+    IPFIX = 3;
+    SFLOW = 4;
+  }
+  FlowType flow_type = 2;
+
+  // Exporter identity (from NetBox enrichment)
+  fixed32 exporter_ip = 3;
+  string exporter_name = 4;
+  string exporter_site = 5;
+  string exporter_region = 6;
+  string exporter_role = 7;
+
+  // Interface information (from NetBox enrichment)
+  uint32 in_if = 10;
+  uint32 out_if = 11;
+  string in_if_name = 12;
+  string out_if_name = 13;
+  uint64 in_if_speed = 14;
+  uint64 out_if_speed = 15;
+
+  // Layer 3
+  bytes src_ip = 20;      // 4 bytes (IPv4) or 16 bytes (IPv6)
+  bytes dst_ip = 21;
+  uint32 ip_version = 22;
+  uint32 protocol = 23;
+  uint32 tos = 24;
+  uint32 ttl = 25;
+
+  // Layer 4
+  uint32 src_port = 30;
+  uint32 dst_port = 31;
+  uint32 tcp_flags = 32;
+  uint32 icmp_type = 33;
+  uint32 icmp_code = 34;
+
+  // Counters
+  uint64 bytes = 40;
+  uint64 packets = 41;
+  uint32 sampling_rate = 42;
+
+  // Flow timing
+  int64 flow_start_ms = 43;
+  int64 flow_end_ms = 44;
+
+  // BGP / Routing
+  uint32 src_as = 50;
+  uint32 dst_as = 51;
+  fixed32 next_hop = 52;
+  uint32 src_mask = 53;
+  uint32 dst_mask = 54;
+
+  // GeoIP enrichment
+  string src_country = 60;
+  string src_city = 61;
+  string dst_country = 62;
+  string dst_city = 63;
+
+  // ASN enrichment
+  string src_as_name = 70;
+  string dst_as_name = 71;
+
+  // VLAN
+  uint32 src_vlan = 80;
+  uint32 dst_vlan = 81;
+
+  // Direction
+  enum Direction {
+    UNKNOWN_DIR = 0;
+    INGRESS = 1;
+    EGRESS = 2;
+  }
+  Direction direction = 82;
+}

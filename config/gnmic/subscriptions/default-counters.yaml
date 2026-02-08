@@ -1,0 +1,12 @@
+subscriptions:
+  default-counters:
+    paths:
+      - /interfaces/interface/state/counters
+      - /interfaces/interface/state/oper-status
+      - /interfaces/interface/state/admin-status
+      - /interfaces/interface/state/last-change
+      - /interfaces/interface/subinterfaces/subinterface/state/counters
+    mode: stream
+    stream-mode: sample
+    sample-interval: 30s
+    encoding: proto

@@ -1,0 +1,112 @@
+suite: Prometheus CR tests
+templates:
+  - templates/prometheus.yaml
+tests:
+  - it: should create Prometheus CR with 1 shard for small tier
+    set:
+      prometheus:
+        shards: 1
+        retention: 2h
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+      global:
+        clusterName: helios
+        datacenter: dc1
+    asserts:
+      - isKind:
+          of: Prometheus
+      - equal:
+          path: spec.shards
+          value: 1
+
+  - it: should create Prometheus CR with 2 shards for medium tier
+    set:
+      prometheus:
+        shards: 2
+        retention: 2h
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+      global:
+        clusterName: helios
+        datacenter: dc1
+    asserts:
+      - equal:
+          path: spec.shards
+          value: 2
+
+  - it: should create Prometheus CR with 4 shards for large tier
+    set:
+      prometheus:
+        shards: 4
+        retention: 2h
+        resources:
+          requests:
+            cpu: "2"
+            memory: 4Gi
+      global:
+        clusterName: helios
+        datacenter: dc1
+    asserts:
+      - equal:
+          path: spec.shards
+          value: 4
+
+  - it: should create Prometheus CR with 8 shards for xl tier
+    set:
+      prometheus:
+        shards: 8
+        retention: 2h
+        resources:
+          requests:
+            cpu: "4"
+            memory: 8Gi
+      global:
+        clusterName: helios
+        datacenter: dc1
+    asserts:
+      - equal:
+          path: spec.shards
+          value: 8
+
+  - it: should include Thanos sidecar configuration
+    set:
+      prometheus:
+        shards: 1
+        retention: 2h
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+      global:
+        clusterName: helios
+        datacenter: dc1
+    asserts:
+      - isNotNull:
+          path: spec.thanos
+      - equal:
+          path: spec.thanos.image
+          value: quay.io/thanos/thanos:v0.35.0
+
+  - it: should set external labels with cluster and datacenter
+    set:
+      prometheus:
+        shards: 1
+        retention: 2h
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+      global:
+        clusterName: helios-prod
+        datacenter: dc2
+    asserts:
+      - equal:
+          path: spec.externalLabels.cluster
+          value: helios-prod
+      - equal:
+          path: spec.externalLabels.datacenter
+          value: dc2

@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helios.fullname" . }}-flow-enricher
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: flow-enricher
+spec:
+  replicas: {{ .Values.flowEnricher.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: flow-enricher
+  template:
+    metadata:
+      labels:
+        {{- include "helios.labels" . | nindent 8 }}
+        app.kubernetes.io/component: flow-enricher
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: flow-enricher
+          image: "{{ .Values.flowEnricher.image.repository | default "ghcr.io/rhwendt/helios/flow-enricher" }}:{{ .Values.flowEnricher.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.flowEnricher.image.pullPolicy | default "IfNotPresent" }}
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ include "helios.fullname" . }}-kafka-bootstrap.helios-flows.svc.cluster.local:9092
+            - name: KAFKA_CONSUMER_GROUP
+              value: {{ .Values.flowEnricher.kafka.consumer.groupId | default "flow-enricher" }}
+            - name: KAFKA_CONSUMER_TOPIC
+              value: {{ .Values.flowEnricher.kafka.consumer.topic | default "helios-flows-raw" }}
+            - name: KAFKA_PRODUCER_TOPIC
+              value: {{ .Values.flowEnricher.kafka.producer.topic | default "helios-flows-enriched" }}
+            - name: NETBOX_API_URL
+              value: {{ .Values.flowEnricher.netbox.url | default "" | quote }}
+            - name: NETBOX_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helios.fullname" . }}-netbox-credentials
+                  key: api-token
+                  optional: true
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: geoip-data
+              mountPath: /var/lib/geoip
+              readOnly: true
+      volumes:
+        - name: geoip-data
+          persistentVolumeClaim:
+            claimName: {{ include "helios.fullname" . }}-geoip-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helios.fullname" . }}-flow-enricher
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: flow-enricher
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "helios.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: flow-enricher

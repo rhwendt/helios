@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "helios.fullname" . }}-thanos-store
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-store
+spec:
+  serviceName: {{ include "helios.fullname" . }}-thanos-store
+  replicas: {{ .Values.thanos.store.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: thanos-store
+  template:
+    metadata:
+      labels:
+        {{- include "helios.labels" . | nindent 8 }}
+        app.kubernetes.io/component: thanos-store
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: thanos-store
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: thanos-store
+          image: quay.io/thanos/thanos:v0.35.0
+          args:
+            - store
+            - --log.level=info
+            - --data-dir=/var/thanos/store
+            - --objstore.config-file=/etc/thanos/objstore.yml
+            - --index-cache-size={{ .Values.thanos.store.indexCacheSize | default "500MB" }}
+            - --chunk-pool-size={{ .Values.thanos.store.chunkPoolSize | default "2GB" }}
+          ports:
+            - name: grpc
+              containerPort: 10901
+              protocol: TCP
+            - name: http
+              containerPort: 10902
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /var/thanos/store
+            - name: objstore-config
+              mountPath: /etc/thanos
+              readOnly: true
+      volumes:
+        - name: objstore-config
+          secret:
+            secretName: {{ include "helios.fullname" . }}-thanos-objstore
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helios.fullname" . }}-thanos-store
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-store
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: grpc
+      port: 10901
+      targetPort: grpc
+      protocol: TCP
+    - name: http
+      port: 10902
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "helios.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-store

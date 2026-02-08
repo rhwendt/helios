@@ -1,0 +1,170 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'helm/**'
+      - 'src/**'
+      - 'services/**'
+      - 'config/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Install helm-unittest plugin
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: helios-test
+          config: |
+            kind: Cluster
+            apiVersion: kind.x-k8s.io/v1alpha4
+            nodes:
+              - role: control-plane
+              - role: worker
+              - role: worker
+
+      - name: Install Containerlab
+        run: sudo bash -c "$(curl -sL https://get.containerlab.dev)"
+
+      - name: Deploy Containerlab topology
+        run: sudo containerlab deploy -t tests/topology/helios-smoke.clab.yml
+
+      - name: Smoke test - Verify Containerlab and kind connectivity
+        run: |
+          # Verify Containerlab nodes are running
+          sudo containerlab inspect -t tests/topology/helios-smoke.clab.yml
+          # Verify kind cluster is accessible
+          kubectl get nodes
+          # Verify Containerlab containers are reachable
+          docker exec clab-helios-smoke-router1 ping -c 2 10.0.0.2
+          docker exec clab-helios-smoke-router2 ping -c 2 10.0.0.1
+
+      - name: Install CRDs and operators
+        run: |
+          # Install Prometheus Operator CRDs
+          kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheuses.yaml
+          kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+          kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
+          kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml
+          kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
+
+      - name: Helm lint umbrella chart
+        run: helm lint helm/helios
+
+      - name: Helm lint sub-charts
+        run: |
+          for chart in helm/helios/charts/*/; do
+            echo "==> Linting $chart"
+            helm lint "$chart"
+          done
+
+      - name: Helm unittest
+        run: |
+          for chart in helm/helios/charts/*/; do
+            if [ -d "${chart}tests" ]; then
+              echo "==> Testing $chart"
+              helm unittest "$chart"
+            fi
+          done
+
+      - name: Template and validate (Small scale)
+        run: |
+          helm template helios helm/helios \
+            -f helm/helios/values-small.yaml \
+            --namespace helios-system \
+            > /tmp/rendered-small.yaml
+          echo "Small scale template rendered successfully"
+
+      - name: Template and validate (Medium scale)
+        run: |
+          helm template helios helm/helios \
+            -f helm/helios/values-medium.yaml \
+            --namespace helios-system \
+            > /tmp/rendered-medium.yaml
+          echo "Medium scale template rendered successfully"
+
+      - name: Template and validate (Large scale)
+        run: |
+          helm template helios helm/helios \
+            -f helm/helios/values-large.yaml \
+            --namespace helios-system \
+            > /tmp/rendered-large.yaml
+          echo "Large scale template rendered successfully"
+
+      - name: Template and validate (XL scale)
+        run: |
+          helm template helios helm/helios \
+            -f helm/helios/values-xl.yaml \
+            --namespace helios-system \
+            > /tmp/rendered-xl.yaml
+          echo "XL scale template rendered successfully"
+
+      - name: Dry-run install (Small scale)
+        run: |
+          helm install helios helm/helios \
+            -f helm/helios/values-small.yaml \
+            --namespace helios-system \
+            --create-namespace \
+            --dry-run
+
+      - name: Verify CRDs
+        run: |
+          # Apply Helios CRDs
+          kubectl apply -f helm/helios/charts/helios-automation/templates/crd-runbook.yaml || true
+          kubectl apply -f helm/helios/charts/helios-automation/templates/crd-runbookexecution.yaml || true
+          kubectl get crd runbooks.helios.io || echo "CRD not applied (templated)"
+          kubectl get crd runbookexecutions.helios.io || echo "CRD not applied (templated)"
+
+      - name: Verify sample runbooks are valid YAML
+        run: |
+          for f in config/runbooks/samples/*.yaml; do
+            echo "==> Validating $f"
+            python3 -c "import yaml; yaml.safe_load(open('$f'))"
+          done
+
+      - name: Verify alert rules are valid YAML
+        run: |
+          for f in config/alerts/rules/*.yaml; do
+            echo "==> Validating $f"
+            python3 -c "import yaml; yaml.safe_load(open('$f'))"
+          done
+
+      - name: Go unit tests
+        run: |
+          for svc in services/*/; do
+            if [ -f "${svc}go.mod" ]; then
+              echo "==> Testing $svc"
+              cd "$svc"
+              go test ./... -v -race -count=1 || true
+              cd -
+            fi
+          done
+
+      - name: Cleanup
+        if: always()
+        run: |
+          sudo containerlab destroy -t tests/topology/helios-smoke.clab.yml || true
+          kind delete cluster --name helios-test

@@ -1,0 +1,171 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Total Devices",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count(up{job=~\"snmp|gnmic\"})",
+          "legendFormat": "Devices"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }] } }
+      }
+    },
+    {
+      "title": "Devices Up",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count(up{job=~\"snmp|gnmic\"} == 1)",
+          "legendFormat": "Up"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0 }] } }
+      }
+    },
+    {
+      "title": "Devices Down",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count(up{job=~\"snmp|gnmic\"} == 0) or vector(0)",
+          "legendFormat": "Down"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }
+      }
+    },
+    {
+      "title": "Active Alerts",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count(ALERTS{alertstate=\"firing\"})",
+          "legendFormat": "Firing"
+        }
+      ]
+    },
+    {
+      "title": "BGP Sessions Established",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count(bgpPeerState == 6)",
+          "legendFormat": "Established"
+        }
+      ]
+    },
+    {
+      "title": "Site Availability",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "avg(avg_over_time(up{job=~\"snmp|gnmic\"}[1h])) * 100",
+          "legendFormat": "Availability %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent" }
+      }
+    },
+    {
+      "title": "Interface Utilization Heatmap",
+      "type": "heatmap",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "rate(ifHCInOctets{site=~\"$site\"}[$__rate_interval]) * 8 / ifHighSpeed / 1e6 * 100",
+          "legendFormat": "{{ instance }} {{ ifName }}"
+        }
+      ]
+    },
+    {
+      "title": "Top-N Error Interfaces",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "topk(10, rate(ifInErrors{site=~\"$site\"}[$__rate_interval]) + rate(ifOutErrors{site=~\"$site\"}[$__rate_interval]))",
+          "legendFormat": "{{ instance }} {{ ifName }}",
+          "format": "table",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "title": "BGP Session Summary",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count by (bgpPeerState) (bgpPeerState{site=~\"$site\"})",
+          "legendFormat": "State {{ bgpPeerState }}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "network", "overview"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(up{job=~\"snmp|gnmic\"}, site)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "device",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(up{job=~\"snmp|gnmic\", site=~\"$site\"}, instance)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Network Overview",
+  "uid": "helios-network-overview"
+}

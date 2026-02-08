@@ -1,0 +1,5 @@
+apiVersion: v2
+name: helios-storage
+description: Prometheus, Thanos, and MinIO storage backend
+version: 0.1.0
+type: application

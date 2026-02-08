@@ -1,0 +1,95 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Devices per Site",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count by (site) (up{job=~\"snmp|gnmic\"})",
+          "legendFormat": "{{ site }}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "title": "Aggregate Bandwidth by Site",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "sum by (site) (rate(ifHCInOctets{site=~\"$site\"}[$__rate_interval]) * 8)",
+          "legendFormat": "{{ site }} In"
+        },
+        {
+          "expr": "sum by (site) (rate(ifHCOutOctets{site=~\"$site\"}[$__rate_interval]) * 8) * -1",
+          "legendFormat": "{{ site }} Out"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps", "custom": { "fillOpacity": 10 } }
+      }
+    },
+    {
+      "title": "Site Availability %",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "avg by (site) (avg_over_time(up{job=~\"snmp|gnmic\", site=~\"$site\"}[1h])) * 100",
+          "legendFormat": "{{ site }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 99 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Alert Count by Site",
+      "type": "bargauge",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count by (site, severity) (ALERTS{alertstate=\"firing\", site=~\"$site\"})",
+          "legendFormat": "{{ site }} ({{ severity }})",
+          "instant": true
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "site", "overview"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(up{job=~\"snmp|gnmic\"}, site)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Site Overview",
+  "uid": "helios-site-overview"
+}

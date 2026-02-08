@@ -1,0 +1,5 @@
+apiVersion: v2
+name: helios-flows
+description: NetFlow/sFlow collection, Kafka pipeline, Flow Enricher, ClickHouse
+version: 0.1.0
+type: application

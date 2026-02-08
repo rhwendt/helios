@@ -1,0 +1,25 @@
+## Storage topology: hybrid
+## Local MinIO as hot tier, cloud S3 as cold tier
+## Thanos compactor ships compacted blocks to cloud S3
+
+global:
+  storageTopology: hybrid
+
+thanos:
+  compactor:
+    enabled: true
+  query:
+    additionalStores: []
+  objstoreSecret:
+    external: false
+    bucket: thanos-metrics
+    endpoint: s3.amazonaws.com
+    insecure: false
+    accessKey: ""
+    secretKey: ""
+
+minio:
+  replicas: 4
+  erasureCoding: true
+  # MinIO serves as local hot-tier cache
+  # Thanos uploads compacted blocks to cloud S3

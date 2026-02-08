@@ -1,0 +1,90 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Interface Traffic (Thanos - SNMP/gNMI)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "rate(gnmic_interfaces_interface_state_counters_in_octets{device=~\"$device\", interface_name=~\"$interface\"}[5m]) * 8",
+          "legendFormat": "{{device}} {{interface_name}} in"
+        },
+        {
+          "expr": "rate(gnmic_interfaces_interface_state_counters_out_octets{device=~\"$device\", interface_name=~\"$interface\"}[5m]) * 8",
+          "legendFormat": "{{device}} {{interface_name}} out"
+        }
+      ]
+    },
+    {
+      "title": "Flow-Based Traffic (ClickHouse)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT $__timeInterval(TimeReceived) as time, SamplerAddress, InIf, sum(Bytes) * 8 / $__interval_s as bits_per_sec FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) AND SamplerAddress IN ($device_ips) GROUP BY time, SamplerAddress, InIf ORDER BY time",
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "title": "Interface Utilization vs Flow Volume",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "rate(gnmic_interfaces_interface_state_counters_in_octets{device=~\"$device\"}[5m]) * 8",
+          "legendFormat": "{{device}} {{interface_name}}",
+          "format": "table",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "title": "Top Interfaces by Error Rate",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "topk(10, rate(gnmic_interfaces_interface_state_counters_in_errors[5m]))",
+          "legendFormat": "{{device}} {{interface_name}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "flows", "interface-correlation"],
+  "templating": {
+    "list": [
+      {
+        "name": "device",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(gnmic_interfaces_interface_state_counters_in_octets, device)",
+        "multi": true
+      },
+      {
+        "name": "interface",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(gnmic_interfaces_interface_state_counters_in_octets{device=~\"$device\"}, interface_name)",
+        "multi": true
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Helios - Interface Correlation",
+  "uid": "helios-interface-correlation",
+  "version": 1
+}

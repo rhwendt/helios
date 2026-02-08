@@ -1,0 +1,81 @@
+suite: ClickHouse Installation
+templates:
+  - templates/clickhouse-installation.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should be a ClickHouseInstallation resource
+    asserts:
+      - isKind:
+          of: ClickHouseInstallation
+      - isAPIVersion:
+          of: clickhouse.altinity.com/v1
+
+  - it: should use default shard count from values
+    asserts:
+      - equal:
+          path: spec.configuration.clusters[0].layout.shardsCount
+          value: 2
+
+  - it: should use default replica count from values
+    asserts:
+      - equal:
+          path: spec.configuration.clusters[0].layout.replicasCount
+          value: 2
+
+  - it: should support small scale tier (1 shard, 1 replica)
+    set:
+      clickhouse:
+        shards: 1
+        replicas: 1
+    asserts:
+      - equal:
+          path: spec.configuration.clusters[0].layout.shardsCount
+          value: 1
+      - equal:
+          path: spec.configuration.clusters[0].layout.replicasCount
+          value: 1
+
+  - it: should support large scale tier (2 shards, 2 replicas)
+    set:
+      clickhouse:
+        shards: 2
+        replicas: 2
+    asserts:
+      - equal:
+          path: spec.configuration.clusters[0].layout.shardsCount
+          value: 2
+      - equal:
+          path: spec.configuration.clusters[0].layout.replicasCount
+          value: 2
+
+  - it: should support XL scale tier (4 shards, 2 replicas)
+    set:
+      clickhouse:
+        shards: 4
+        replicas: 2
+    asserts:
+      - equal:
+          path: spec.configuration.clusters[0].layout.shardsCount
+          value: 4
+      - equal:
+          path: spec.configuration.clusters[0].layout.replicasCount
+          value: 2
+
+  - it: should set storage from values
+    asserts:
+      - equal:
+          path: spec.templates.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 100Gi
+
+  - it: should be in helios-flows namespace
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: helios-flows
+
+  - it: should have helios part-of label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/part-of"]
+          value: helios

@@ -1,0 +1,60 @@
+suite: Runbook Operator Deployment
+templates:
+  - templates/deployment-operator.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should be a Deployment
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should enable leader election via args
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-elect=true"
+
+  - it: should have helios part-of label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/part-of"]
+          value: helios
+
+  - it: should be in helios-automation namespace
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: helios-automation
+
+  - it: should reference a ServiceAccount for RBAC
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.serviceAccountName
+
+  - it: should run as non-root
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+
+  - it: should have resource limits set
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].resources.limits.memory
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: should create Runbook CRD
+    templates:
+      - templates/crd-runbook.yaml
+    asserts:
+      - isKind:
+          of: CustomResourceDefinition
+
+  - it: should create RunbookExecution CRD
+    templates:
+      - templates/crd-runbookexecution.yaml
+    asserts:
+      - isKind:
+          of: CustomResourceDefinition

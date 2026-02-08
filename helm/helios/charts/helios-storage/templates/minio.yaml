@@ -1,0 +1,196 @@
+{{- if ne ((.Values.global).storageTopology | default "single-dc-minio") "cloud-s3" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "helios.fullname" . }}-minio
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  serviceName: {{ include "helios.fullname" . }}-minio
+  replicas: {{ .Values.minio.replicas | default 4 }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: minio
+  template:
+    metadata:
+      labels:
+        {{- include "helios.labels" . | nindent 8 }}
+        app.kubernetes.io/component: minio
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:latest
+          args:
+            - server
+            - http://{{ include "helios.fullname" . }}-minio-{0...{{ sub (.Values.minio.replicas | default 4 | int) 1 }}}.{{ include "helios.fullname" . }}-minio.helios-storage.svc.cluster.local/data
+            - --console-address
+            - ":9001"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helios.fullname" . }}-minio-credentials
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helios.fullname" . }}-minio-credentials
+                  key: root-password
+          {{- if .Values.minio.erasureCoding }}
+            - name: MINIO_ERASURE_SET_DRIVE_COUNT
+              value: "{{ .Values.minio.replicas | default 4 }}"
+          {{- end }}
+          ports:
+            - name: api
+              containerPort: 9000
+              protocol: TCP
+            - name: console
+              containerPort: 9001
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helios.fullname" . }}-minio
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+      protocol: TCP
+    - name: console
+      port: 9001
+      targetPort: console
+      protocol: TCP
+  selector:
+    {{- include "helios.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helios.fullname" . }}-minio-api
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  type: ClusterIP
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+      protocol: TCP
+  selector:
+    {{- include "helios.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+---
+{{- if .Values.minio.buckets }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "helios.fullname" . }}-minio-bucket-init
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "helios.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: minio-init
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mc alias set helios http://{{ include "helios.fullname" . }}-minio-api.helios-storage.svc.cluster.local:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+              {{- range .Values.minio.buckets }}
+              mc mb --ignore-existing helios/{{ .name }}
+              {{- end }}
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helios.fullname" . }}-minio-credentials
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helios.fullname" . }}-minio-credentials
+                  key: root-password
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+{{- end }}
+{{- end }}

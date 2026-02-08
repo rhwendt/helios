@@ -1,0 +1,10 @@
+subscriptions:
+  default-bgp:
+    paths:
+      - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state
+      - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes
+      - /network-instances/network-instance/protocols/protocol/bgp/global/state
+    mode: stream
+    stream-mode: sample
+    sample-interval: 60s
+    encoding: proto

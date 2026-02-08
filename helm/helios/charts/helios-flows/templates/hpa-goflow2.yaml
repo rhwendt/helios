@@ -1,0 +1,22 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-goflow2
+  labels:
+    app.kubernetes.io/name: goflow2
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: flows
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: {{ .Release.Name }}-goflow2
+  minReplicas: {{ .Values.goflow2.replicas }}
+  maxReplicas: {{ mul .Values.goflow2.replicas 5 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

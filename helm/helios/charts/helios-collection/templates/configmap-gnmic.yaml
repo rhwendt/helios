@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-gnmic-config
+  labels:
+    app.kubernetes.io/name: gnmic
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: collection
+data:
+  gnmic.yaml: |
+    username: {{ "{{ env \"GNMIC_USERNAME\" }}" }}
+    password: {{ "{{ env \"GNMIC_PASSWORD\" }}" }}
+    encoding: proto
+    log: true
+
+    subscriptions:
+      interfaces_counters:
+        paths:
+          - /interfaces/interface/state/counters
+        mode: stream
+        stream-mode: sample
+        sample-interval: 30s
+
+      system_state:
+        paths:
+          - /system/state
+        mode: stream
+        stream-mode: sample
+        sample-interval: 60s
+
+      bgp_neighbors:
+        paths:
+          - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state
+        mode: stream
+        stream-mode: on-change
+
+    outputs:
+      prometheus-remote-write:
+        type: prometheus
+        listen: :{{ .Values.gnmic.prometheusPort }}
+        path: /metrics
+        metric-prefix: gnmic
+        append-subscription-name: true
+
+    {{- if .Values.gnmic.clusteringEnabled }}
+    clustering:
+      cluster-name: {{ .Release.Name }}-gnmic
+      instance-name: ${HOSTNAME}
+      service-address: ${HOSTNAME}.{{ .Release.Name }}-gnmic-headless:{{ .Values.gnmic.apiPort }}
+      targets-watch-timer: 30s
+      loader:
+        type: file
+        path: /etc/gnmic/targets/
+    {{- end }}

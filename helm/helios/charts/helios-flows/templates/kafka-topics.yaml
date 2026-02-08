@@ -1,0 +1,19 @@
+{{- range .Values.kafka.topics }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ .name }}
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: kafka
+    strimzi.io/cluster: {{ include "helios.fullname" $ }}-kafka
+spec:
+  partitions: {{ .partitions }}
+  replicas: {{ min ($.Values.kafka.brokers | default 3 | int) 3 }}
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+    cleanup.policy: delete
+{{- end }}

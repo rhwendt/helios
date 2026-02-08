@@ -1,0 +1,83 @@
+## Helios - Medium scale tier (50-500 devices)
+## Note: These values match the defaults in values.yaml
+
+gnmic:
+  replicas: 3
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "1"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
+
+prometheus:
+  shards: 2
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+
+thanos-store:
+  replicas: 2
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1"
+
+minio-tenant:
+  replicas: 4
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1"
+
+goflow2:
+  replicas: 2
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1"
+
+flowEnricher:
+  replicas: 3
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1"
+
+kafka:
+  brokers: 3
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1"
+
+clickhouse:
+  shards: 1
+  replicas: 2
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"

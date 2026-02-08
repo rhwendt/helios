@@ -1,0 +1,73 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: clear-bgp-neighbor
+  namespace: helios-automation
+spec:
+  name: Clear BGP Neighbor
+  description: |
+    Clear a BGP neighbor session to force re-establishment. Requires approval
+    for high-risk operations. Verifies the session returns to Established state
+    after clearing.
+  category: bgp
+  riskLevel: high
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: network-engineers
+  approvalTimeout: "1h"
+  cooldown: "15m"
+  allowedRoles:
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname
+    - name: neighbor_address
+      type: string
+      required: true
+      description: BGP neighbor IP address
+      validation: "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"
+    - name: network_instance
+      type: string
+      required: false
+      default: "default"
+      description: Network instance / VRF name
+  steps:
+    - name: get-bgp-state
+      action: gnmi_get
+      timeout: "10s"
+      config:
+        path: /network-instances/network-instance[name={{ "{{" }} .Parameters.network_instance {{ "}}" }}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{ "{{" }} .Parameters.neighbor_address {{ "}}" }}]/state
+    - name: clear-bgp-session
+      action: gnmi_set
+      timeout: "15s"
+      config:
+        path: /network-instances/network-instance[name={{ "{{" }} .Parameters.network_instance {{ "}}" }}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{ "{{" }} .Parameters.neighbor_address {{ "}}" }}]/state/reset
+        value: "true"
+        encoding: json_ietf
+    - name: wait-for-convergence
+      action: wait
+      config:
+        duration: "30s"
+    - name: verify-bgp-established
+      action: gnmi_subscribe
+      timeout: "120s"
+      config:
+        path: /network-instances/network-instance[name={{ "{{" }} .Parameters.network_instance {{ "}}" }}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{ "{{" }} .Parameters.neighbor_address {{ "}}" }}]/state/session-state
+        retryUntil: "ESTABLISHED"
+        interval: "5s"
+    - name: notify-success
+      action: notify
+      config:
+        channel: slack
+        message: "BGP neighbor {{ "{{" }} .Parameters.neighbor_address {{ "}}" }} on {{ "{{" }} .Parameters.device {{ "}}" }} cleared and re-established"
+  rollback:
+    - name: notify-failure
+      action: notify
+      config:
+        channel: slack
+        message: "ALERT: BGP neighbor {{ "{{" }} .Parameters.neighbor_address {{ "}}" }} on {{ "{{" }} .Parameters.device {{ "}}" }} failed to re-establish after clear"
+        severity: critical

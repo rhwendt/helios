@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "helios.fullname" . }}-goflow2
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: goflow2
+spec:
+  serviceName: {{ include "helios.fullname" . }}-goflow2
+  replicas: {{ .Values.goflow2.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: goflow2
+  template:
+    metadata:
+      labels:
+        {{- include "helios.labels" . | nindent 8 }}
+        app.kubernetes.io/component: goflow2
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: goflow2
+          image: netsampler/goflow2:latest
+          args:
+            - -transport=kafka
+            - -transport.kafka.brokers={{ include "helios.fullname" . }}-kafka-bootstrap.helios-flows.svc.cluster.local:9092
+            - -transport.kafka.topic={{ .Values.goflow2.kafkaTopic | default "helios-flows-raw" }}
+            - -format=protobuf
+          ports:
+            {{- range .Values.goflow2.udpPorts }}
+            - name: udp-{{ . }}
+              containerPort: {{ . }}
+              protocol: UDP
+            {{- end }}
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

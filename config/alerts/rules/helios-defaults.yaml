@@ -1,0 +1,58 @@
+groups:
+  - name: helios-device-availability
+    rules:
+      - alert: HeliosDeviceDown
+        expr: up{job="gnmic"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Device {{ $labels.device }} at site {{ $labels.site }} is unreachable"
+          description: "gNMIc target {{ $labels.instance }} has been down for 2 minutes."
+          runbook_url: "https://helios.internal/runbooks/device-down"
+
+  - name: helios-interface-health
+    rules:
+      - alert: HeliosInterfaceErrors
+        expr: rate(interface_errors_total[5m]) / rate(interface_packets_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.device }} {{ $labels.interface }}"
+          description: "Interface {{ $labels.interface }} on {{ $labels.device }} at site {{ $labels.site }} has error rate >1% for 5 minutes."
+          runbook_url: "https://helios.internal/runbooks/interface-errors"
+
+  - name: helios-bgp-health
+    rules:
+      - alert: HeliosBGPSessionDown
+        expr: bgp_session_state != 6
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BGP session down on {{ $labels.device }} to {{ $labels.neighbor_address }}"
+          description: "BGP neighbor {{ $labels.neighbor_address }} on {{ $labels.device }} at site {{ $labels.site }} is not in Established state for 1 minute."
+          runbook_url: "https://helios.internal/runbooks/bgp-session-down"
+
+  - name: helios-system-health
+    rules:
+      - alert: HeliosHighCPU
+        expr: cpu_utilization > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU utilization on {{ $labels.device }}"
+          description: "CPU utilization on {{ $labels.device }} at site {{ $labels.site }} has been above 80% for 5 minutes."
+          runbook_url: "https://helios.internal/runbooks/high-cpu"
+
+      - alert: HeliosHighMemory
+        expr: memory_utilization > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory utilization on {{ $labels.device }}"
+          description: "Memory utilization on {{ $labels.device }} at site {{ $labels.site }} has been above 85% for 5 minutes."
+          runbook_url: "https://helios.internal/runbooks/high-memory"

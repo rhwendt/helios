@@ -1,0 +1,148 @@
+# Target Generator Output Contracts
+#
+# The Target Generator CronJob produces the following artifacts
+# every sync cycle (default: 5 minutes). Each output is a Kubernetes
+# ConfigMap or a file within a ConfigMap.
+
+---
+# 1. gnmic Target ConfigMap
+# Namespace: helios-collection
+# Consumed by: gnmic StatefulSet (volume mount)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helios-gnmic-targets
+  namespace: helios-collection
+  labels:
+    app.kubernetes.io/name: gnmic
+    app.kubernetes.io/component: targets
+    helios.io/generated-by: target-generator
+  annotations:
+    helios.io/last-sync: "2026-02-07T12:00:00Z"
+    helios.io/device-count: "42"
+data:
+  targets.yaml: |
+    targets:
+      core-rtr-01:6030:
+        address: 10.0.1.1:6030
+        labels:
+          device: core-rtr-01
+          site: dc1
+          region: us-east
+          vendor: arista
+          platform: eos
+          role: core-router
+          tier: critical
+        subscriptions:
+          - default-counters
+          - default-bgp
+          - default-system
+      access-sw-01:6030:
+        address: 10.0.2.1:6030
+        labels:
+          device: access-sw-01
+          site: dc1
+          region: us-east
+          vendor: cisco
+          platform: iosxe
+          role: access-switch
+          tier: standard
+        subscriptions:
+          - default-counters
+          - default-system
+
+---
+# 2. SNMP Exporter Target ConfigMap (Prometheus file_sd format)
+# Namespace: helios-collection
+# Consumed by: Prometheus (file_sd_configs mount)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helios-snmp-targets
+  namespace: helios-collection
+  labels:
+    app.kubernetes.io/name: snmp-exporter
+    app.kubernetes.io/component: targets
+    helios.io/generated-by: target-generator
+data:
+  snmp-targets.json: |
+    [
+      {
+        "targets": ["10.0.1.1"],
+        "labels": {
+          "device": "core-rtr-01",
+          "site": "dc1",
+          "region": "us-east",
+          "vendor": "arista",
+          "platform": "eos",
+          "role": "core-router",
+          "tier": "critical",
+          "__param_module": "arista_eos",
+          "__param_community": "__secret:helios-snmp-credentials:core-rtr-01"
+        }
+      },
+      {
+        "targets": ["10.0.3.1"],
+        "labels": {
+          "device": "fw-01",
+          "site": "dc1",
+          "region": "us-east",
+          "vendor": "paloalto",
+          "platform": "panos",
+          "role": "firewall",
+          "tier": "critical",
+          "__param_module": "paloalto_panos"
+        }
+      }
+    ]
+
+---
+# 3. Blackbox Exporter Target ConfigMap (Prometheus file_sd format)
+# Namespace: helios-collection
+# Consumed by: Prometheus (file_sd_configs mount)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helios-blackbox-targets
+  namespace: helios-collection
+  labels:
+    app.kubernetes.io/name: blackbox-exporter
+    app.kubernetes.io/component: targets
+    helios.io/generated-by: target-generator
+data:
+  blackbox-icmp-targets.json: |
+    [
+      {
+        "targets": ["10.0.1.1"],
+        "labels": {
+          "device": "core-rtr-01",
+          "site": "dc1",
+          "region": "us-east",
+          "__param_module": "icmp"
+        }
+      }
+    ]
+  blackbox-tcp-targets.json: |
+    [
+      {
+        "targets": ["10.0.1.1:22"],
+        "labels": {
+          "device": "core-rtr-01",
+          "site": "dc1",
+          "region": "us-east",
+          "__param_module": "tcp_connect"
+        }
+      }
+    ]
+
+---
+# 4. Target Generator Status Metrics (exposed on :8080/metrics)
+#
+# helios_target_sync_last_success_timestamp   gauge   Unix timestamp of last successful sync
+# helios_target_sync_duration_seconds         gauge   Duration of last sync cycle
+# helios_target_sync_devices_total            gauge   Total devices discovered in last sync
+# helios_target_sync_gnmi_targets             gauge   Number of gNMI targets generated
+# helios_target_sync_snmp_targets             gauge   Number of SNMP targets generated
+# helios_target_sync_blackbox_targets         gauge   Number of blackbox targets generated
+# helios_target_sync_errors_total             counter Total sync errors
+# helios_target_sync_configmap_updates_total  counter Total ConfigMap update operations

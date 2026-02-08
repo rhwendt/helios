@@ -1,0 +1,15 @@
+## Storage topology: single-dc-minio
+## Default topology - all data stored in local MinIO cluster with erasure coding
+
+global:
+  storageTopology: single-dc-minio
+
+thanos:
+  compactor:
+    enabled: true
+  query:
+    additionalStores: []
+
+minio:
+  replicas: 4
+  erasureCoding: true

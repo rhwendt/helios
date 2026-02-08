@@ -1,0 +1,172 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- range $ns := list "helios-integration" "helios-collection" "helios-storage" "helios-visualization" "helios-automation" "helios-flows" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: helios
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+{{- end }}
+
+## Cross-namespace traffic: collection -> storage (Prometheus remote write)
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-collection-to-storage
+  namespace: helios-storage
+  labels:
+    app.kubernetes.io/part-of: helios
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+              kubernetes.io/metadata.name: helios-collection
+      ports:
+        - protocol: TCP
+          port: 9090
+
+## Cross-namespace traffic: visualization -> storage (Grafana queries Thanos)
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-visualization-to-storage
+  namespace: helios-storage
+  labels:
+    app.kubernetes.io/part-of: helios
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: thanos-query
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+              kubernetes.io/metadata.name: helios-visualization
+      ports:
+        - protocol: TCP
+          port: 9090
+
+## Cross-namespace traffic: flows -> storage (Flow Enricher writes to ClickHouse)
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-flows-to-clickhouse
+  namespace: helios-flows
+  labels:
+    app.kubernetes.io/part-of: helios
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: clickhouse
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+              kubernetes.io/metadata.name: helios-flows
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: flow-enricher
+      ports:
+        - protocol: TCP
+          port: 8123
+        - protocol: TCP
+          port: 9000
+
+## Cross-namespace traffic: integration -> collection (Target Generator configures gNMI)
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-integration-to-collection
+  namespace: helios-collection
+  labels:
+    app.kubernetes.io/part-of: helios
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: gnmic
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+              kubernetes.io/metadata.name: helios-integration
+      ports:
+        - protocol: TCP
+          port: 7890
+
+## Cross-namespace traffic: automation -> all namespaces (Runbook Operator)
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-automation-egress
+  namespace: helios-automation
+  labels:
+    app.kubernetes.io/part-of: helios
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: runbook-operator
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+              kubernetes.io/metadata.name: helios-visualization
+      ports:
+        - protocol: TCP
+          port: 8080
+
+## Cross-namespace traffic: visualization -> flows (Grafana queries ClickHouse)
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-visualization-to-flows
+  namespace: helios-flows
+  labels:
+    app.kubernetes.io/part-of: helios
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: clickhouse
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+              kubernetes.io/metadata.name: helios-visualization
+      ports:
+        - protocol: TCP
+          port: 8123
+{{- end }}

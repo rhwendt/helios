@@ -1,0 +1,13 @@
+subscriptions:
+  default-system:
+    paths:
+      - /components/component/state/temperature
+      - /components/component/state/memory
+      - /components/component/cpu/utilization/state
+      - /system/memory/state
+      - /system/cpus/cpu/state
+      - /system/processes/process/state
+    mode: stream
+    stream-mode: sample
+    sample-interval: 60s
+    encoding: proto

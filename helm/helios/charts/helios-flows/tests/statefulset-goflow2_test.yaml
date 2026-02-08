@@ -1,0 +1,70 @@
+suite: goflow2 StatefulSet
+templates:
+  - templates/statefulset-goflow2.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should be a StatefulSet
+    asserts:
+      - isKind:
+          of: StatefulSet
+
+  - it: should expose UDP port 2055 for NetFlow
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: udp-2055
+            containerPort: 2055
+            protocol: UDP
+          any: true
+
+  - it: should expose UDP port 6343 for sFlow
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: udp-6343
+            containerPort: 6343
+            protocol: UDP
+          any: true
+
+  - it: should configure Kafka output transport
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "-transport=kafka"
+
+  - it: should set Kafka topic from values
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content:
+            "-transport.kafka.topic=helios-flows-raw"
+
+  - it: should use default replica count from values
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: should override replica count
+    set:
+      goflow2:
+        replicas: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  - it: should use protobuf format
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "-format=protobuf"
+
+  - it: should run as non-root
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true

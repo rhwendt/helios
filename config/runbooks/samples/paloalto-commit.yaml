@@ -1,0 +1,71 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: paloalto-commit
+  namespace: helios-automation
+spec:
+  name: Palo Alto Commit Configuration
+  description: |
+    Commit candidate configuration on a Palo Alto PAN-OS device.
+    Verifies commit status and validates security policy after commit.
+  category: security
+  riskLevel: high
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: security-engineers
+  approvalTimeout: "1h"
+  cooldown: "15m"
+  allowedRoles:
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+    - name: description
+      type: string
+      required: false
+      default: "Committed via Helios automation"
+      description: Commit description
+  steps:
+    - name: check-pending-changes
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        path: /config/candidate
+    - name: commit-config
+      action: script
+      timeout: "120s"
+      config:
+        command: "commit description {{ "{{" }} .Parameters.description {{ "}}" }}"
+    - name: wait-for-commit
+      action: wait
+      config:
+        duration: "30s"
+    - name: verify-commit-status
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        path: /config/commit-status
+    - name: notify-success
+      action: notify
+      config:
+        channel: slack
+        message: "PAN-OS commit completed on {{ "{{" }} .Parameters.device {{ "}}" }}: {{ "{{" }} .Parameters.description {{ "}}" }}"
+  rollback:
+    - name: revert-config
+      action: script
+      timeout: "120s"
+      config:
+        command: "load config last-good"
+    - name: commit-rollback
+      action: script
+      timeout: "120s"
+      config:
+        command: "commit description 'Rollback: {{ "{{" }} .Parameters.description {{ "}}" }}'"
+    - name: notify-rollback
+      action: notify
+      config:
+        channel: slack
+        message: "PAN-OS commit ROLLED BACK on {{ "{{" }} .Parameters.device {{ "}}" }}"
+        severity: critical

@@ -1,0 +1,52 @@
+suite: Grafana datasources ConfigMap
+templates:
+  - templates/grafana-datasources.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should be a ConfigMap
+    asserts:
+      - isKind:
+          of: ConfigMap
+
+  - it: should have the Grafana sidecar label for datasource provisioning
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_datasource"]
+          value: "1"
+
+  - it: should include Thanos Query as a Prometheus datasource
+    asserts:
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "url:.*thanos-query\\.helios-storage\\.svc\\.cluster\\.local.*9090"
+
+  - it: should include Alertmanager datasource
+    asserts:
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "url:.*alertmanager\\.helios-visualization\\.svc\\.cluster\\.local.*9093"
+
+  - it: should set Thanos Query as default datasource
+    asserts:
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "isDefault:\\s*true"
+
+  - it: should include ClickHouse datasource for flow queries
+    asserts:
+      - matchRegex:
+          path: data["datasources.yaml"]
+          pattern: "url:.*clickhouse\\.helios-storage\\.svc\\.cluster\\.local.*8123"
+
+  - it: should be deployed in helios-visualization namespace
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: helios-visualization
+
+  - it: should have helios part-of label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/part-of"]
+          value: helios

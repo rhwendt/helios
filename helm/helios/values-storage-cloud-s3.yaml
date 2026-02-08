@@ -1,0 +1,22 @@
+## Storage topology: cloud-s3
+## Use cloud-native S3 (AWS, GCS, Azure) - no MinIO deployment
+
+global:
+  storageTopology: cloud-s3
+
+thanos:
+  compactor:
+    enabled: true
+  query:
+    additionalStores: []
+  objstoreSecret:
+    external: false  # Set to true to use ESO
+    bucket: thanos-metrics
+    endpoint: s3.amazonaws.com
+    insecure: false
+    # accessKey and secretKey should be provided via sealed secret or ESO
+    accessKey: ""
+    secretKey: ""
+
+minio:
+  enabled: false

@@ -1,0 +1,42 @@
+suite: Thanos Compactor Singleton
+templates:
+  - templates/thanos-compactor.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should always have exactly 1 replica
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+        documentIndex: 0
+
+  - it: should have PDB with maxUnavailable 1
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+        documentIndex: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 1
+
+  - it: should be a StatefulSet
+    asserts:
+      - isKind:
+          of: StatefulSet
+        documentIndex: 0
+
+  - it: should use compactor retention values from config
+    set:
+      thanos:
+        compactor:
+          retention:
+            raw: 7d
+            fiveMin: 14d
+            oneHour: 30d
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--retention.resolution-raw=7d"
+        documentIndex: 0

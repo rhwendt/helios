@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-gnmic-headless
+  labels:
+    app.kubernetes.io/name: gnmic
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: collection
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: api
+      port: {{ .Values.gnmic.apiPort }}
+      targetPort: api
+      protocol: TCP
+    - name: metrics
+      port: {{ .Values.gnmic.prometheusPort }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: gnmic
+    app.kubernetes.io/instance: {{ .Release.Name }}

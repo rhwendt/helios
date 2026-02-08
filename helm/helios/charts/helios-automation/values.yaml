@@ -1,0 +1,30 @@
+operator:
+  image:
+    repository: ghcr.io/rhwendt/helios/runbook-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  leaderElect: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+executor:
+  image:
+    repository: ghcr.io/rhwendt/helios/runbook-executor
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+rbac:
+  enabled: true

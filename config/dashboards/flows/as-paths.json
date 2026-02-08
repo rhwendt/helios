@@ -1,0 +1,67 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Top Source ASNs",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcAS, sum(Bytes) as total_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND SrcAS > 0 GROUP BY SrcAS ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Destination ASNs",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT DstAS, sum(Bytes) as total_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND DstAS > 0 GROUP BY DstAS ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "AS Path Analysis",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcAS, DstAS, sum(Bytes) as total_bytes, sum(Packets) as total_packets, count() as flow_count FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND SrcAS > 0 AND DstAS > 0 GROUP BY SrcAS, DstAS ORDER BY total_bytes DESC LIMIT 50",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Transit Traffic (SrcAS != DstAS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT $__timeInterval(TimeReceived) as time, sum(Bytes) as transit_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND SrcAS != DstAS AND SrcAS > 0 AND DstAS > 0 GROUP BY time ORDER BY time",
+          "format": "timeseries"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "flows", "as-paths"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Helios - AS Paths",
+  "uid": "helios-as-paths",
+  "version": 1
+}

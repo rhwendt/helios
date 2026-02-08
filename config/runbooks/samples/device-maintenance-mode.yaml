@@ -1,0 +1,60 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: device-maintenance-mode
+  namespace: helios-automation
+spec:
+  name: Enter Device Maintenance Mode
+  description: |
+    Place a device into maintenance mode by increasing all IGP metrics to max
+    and suppressing alerts. Used for planned maintenance windows.
+  category: system
+  riskLevel: high
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: network-engineers
+  approvalTimeout: "1h"
+  cooldown: "30m"
+  allowedRoles:
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+    - name: maintenance_window_hours
+      type: integer
+      required: false
+      default: 4
+      description: Duration of maintenance window in hours
+  steps:
+    - name: backup-current-config
+      action: gnmi_get
+      timeout: "30s"
+      config:
+        path: /system/config
+    - name: set-isis-overload
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS]/isis/global/config/set-overload-bit
+        value: "true"
+        encoding: json_ietf
+    - name: wait-for-convergence
+      action: wait
+      config:
+        duration: "60s"
+    - name: notify-maintenance-start
+      action: notify
+      config:
+        channel: slack
+        message: "Device {{ "{{" }} .Parameters.device {{ "}}" }} entered maintenance mode for {{ "{{" }} .Parameters.maintenance_window_hours {{ "}}" }}h"
+  rollback:
+    - name: clear-isis-overload
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS]/isis/global/config/set-overload-bit
+        value: "false"
+        encoding: json_ietf

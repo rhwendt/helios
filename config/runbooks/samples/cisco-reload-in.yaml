@@ -1,0 +1,65 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: cisco-reload-in
+  namespace: helios-automation
+spec:
+  name: Cisco Scheduled Reload
+  description: |
+    Schedule a device reload on Cisco IOS-XE devices. Requires critical
+    approval and backs up configuration before scheduling.
+  category: system
+  riskLevel: critical
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: senior-network-engineers
+    - type: user
+      name: network-team-lead
+  approvalTimeout: "2h"
+  cooldown: "24h"
+  allowedRoles:
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+    - name: reload_delay_minutes
+      type: integer
+      required: true
+      default: 60
+      description: Minutes until reload
+  steps:
+    - name: backup-running-config
+      action: gnmi_get
+      timeout: "30s"
+      config:
+        path: /system/config
+    - name: verify-no-active-sessions
+      action: gnmi_get
+      timeout: "10s"
+      config:
+        path: /system/ssh-server/sessions
+    - name: schedule-reload
+      action: script
+      timeout: "30s"
+      config:
+        command: "reload in {{ "{{" }} .Parameters.reload_delay_minutes {{ "}}" }}"
+        confirm: true
+    - name: notify-scheduled
+      action: notify
+      config:
+        channel: slack
+        message: "Reload scheduled for {{ "{{" }} .Parameters.device {{ "}}" }} in {{ "{{" }} .Parameters.reload_delay_minutes {{ "}}" }} minutes"
+        severity: warning
+  rollback:
+    - name: cancel-reload
+      action: script
+      timeout: "10s"
+      config:
+        command: "reload cancel"
+    - name: notify-cancelled
+      action: notify
+      config:
+        channel: slack
+        message: "Scheduled reload CANCELLED for {{ "{{" }} .Parameters.device {{ "}}" }}"

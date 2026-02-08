@@ -1,0 +1,32 @@
+groups:
+  - name: helios-runbook-operator
+    rules:
+      - alert: HeliosRunbookPendingApprovalTooLong
+        expr: |
+          (time() - kube_customresource_runbookexecution_status_phase{phase="PendingApproval"}) > 3600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Runbook execution {{ $labels.name }} pending approval for over 1 hour"
+          description: "RunbookExecution {{ $labels.namespace }}/{{ $labels.name }} has been in PendingApproval state for more than 1 hour. The approval may have been missed."
+
+      - alert: HeliosRunbookExecutionFailed
+        expr: |
+          kube_customresource_runbookexecution_status_phase{phase="Failed"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Runbook execution {{ $labels.name }} failed"
+          description: "RunbookExecution {{ $labels.namespace }}/{{ $labels.name }} has entered Failed state. Check execution logs for details."
+
+      - alert: HeliosRunbookRollbackTriggered
+        expr: |
+          kube_customresource_runbookexecution_status_phase{phase="RollingBack"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Runbook rollback triggered for {{ $labels.name }}"
+          description: "RunbookExecution {{ $labels.namespace }}/{{ $labels.name }} is rolling back. A step failed and automatic rollback has been initiated."

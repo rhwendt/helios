@@ -1,0 +1,55 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Site-to-Site Traffic Matrix",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcSite, DstSite, sum(Bytes) as total_bytes, count() as flow_count FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) GROUP BY SrcSite, DstSite ORDER BY total_bytes DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "AS-to-AS Traffic Matrix",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcAS, DstAS, sum(Bytes) as total_bytes, count() as flow_count FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) GROUP BY SrcAS, DstAS ORDER BY total_bytes DESC LIMIT 50",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Protocol Distribution per Path",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcSite, DstSite, Proto, sum(Bytes) as total_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) GROUP BY SrcSite, DstSite, Proto ORDER BY total_bytes DESC LIMIT 50",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "flows", "traffic-matrix"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Helios - Traffic Matrix",
+  "uid": "helios-traffic-matrix",
+  "version": 1
+}

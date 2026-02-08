@@ -1,0 +1,116 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "ICMP Round-Trip Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "probe_icmp_duration_seconds{phase=\"rtt\", instance=~\"$device\"}",
+          "legendFormat": "{{ instance }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "Packet Loss %",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "(1 - avg_over_time(probe_success{module=\"icmp\", instance=~\"$device\"}[5m])) * 100",
+          "legendFormat": "{{ instance }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "TCP Connect Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "probe_duration_seconds{module=\"tcp_connect\", instance=~\"$device\"}",
+          "legendFormat": "{{ instance }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "HTTP Probe Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "probe_http_duration_seconds{instance=~\"$device\"}",
+          "legendFormat": "{{ instance }} {{ phase }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "Probe Success Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "avg by (module) (avg_over_time(probe_success{instance=~\"$device\"}[1h])) * 100",
+          "legendFormat": "{{ module }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent" }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "latency", "reachability"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(probe_success, site)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "device",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(probe_success{site=~\"$site\"}, instance)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Latency & Reachability",
+  "uid": "helios-latency-reachability"
+}

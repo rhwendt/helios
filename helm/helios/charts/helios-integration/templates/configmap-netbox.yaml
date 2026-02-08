@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-netbox-config
+  labels:
+    app.kubernetes.io/name: target-generator
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: integration
+data:
+  url: {{ .Values.netbox.url | quote }}
+  filters: |
+    {{- toYaml .Values.netbox.filters | nindent 4 }}
+  custom-fields: |
+    gnmi_enabled: gnmi_enabled
+    gnmi_port: gnmi_port
+    snmp_enabled: snmp_enabled
+    snmp_module: snmp_module
+    telemetry_profile: telemetry_profile
+    monitoring_tier: monitoring_tier
+    blackbox_probes: blackbox_probes

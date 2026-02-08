@@ -1,0 +1,99 @@
+{{- if .Values.rbac.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "helios.fullname" . }}-operator
+  namespace: helios-automation
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "helios.fullname" . }}-operator
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+rules:
+  - apiGroups: ["helios.io"]
+    resources: ["runbooks"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbooks/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbookexecutions"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbookexecutions/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "helios.fullname" . }}-operator
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "helios.fullname" . }}-operator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "helios.fullname" . }}-operator
+    namespace: helios-automation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "helios.fullname" . }}-executor
+  namespace: helios-automation
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbookexecutions/status"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "helios.fullname" . }}-executor
+  namespace: helios-automation
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "helios.fullname" . }}-executor
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "helios.fullname" . }}-operator
+    namespace: helios-automation
+{{- end }}

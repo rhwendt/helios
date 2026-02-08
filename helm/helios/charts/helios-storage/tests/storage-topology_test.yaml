@@ -1,0 +1,62 @@
+suite: Storage Topology Configurations
+templates:
+  - templates/thanos-objstore-secret.yaml
+  - templates/minio.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should render MinIO for single-dc-minio topology
+    set:
+      global:
+        storageTopology: single-dc-minio
+    template: templates/minio.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+        documentIndex: 0
+
+  - it: should render MinIO for multi-dc-minio topology
+    set:
+      global:
+        storageTopology: multi-dc-minio
+    template: templates/minio.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+        documentIndex: 0
+
+  - it: should skip MinIO for cloud-s3 topology
+    set:
+      global:
+        storageTopology: cloud-s3
+      minio:
+        enabled: false
+    template: templates/minio.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render S3 objstore config for cloud-s3 topology
+    set:
+      global:
+        storageTopology: cloud-s3
+      thanos:
+        objstoreSecret:
+          external: false
+          bucket: thanos-metrics
+          endpoint: s3.amazonaws.com
+          insecure: false
+    template: templates/thanos-objstore-secret.yaml
+    asserts:
+      - isKind:
+          of: Secret
+
+  - it: should use ESO for external secret reference
+    set:
+      thanos:
+        objstoreSecret:
+          external: true
+    template: templates/thanos-objstore-secret.yaml
+    asserts:
+      - isKind:
+          of: ExternalSecret

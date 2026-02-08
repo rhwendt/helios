@@ -1,0 +1,81 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: helios-viewer
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["prometheuses", "servicemonitors", "podmonitors", "prometheusrules"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbooks", "runbookexecutions"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: helios-engineer
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["prometheuses", "servicemonitors", "podmonitors", "prometheusrules"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbooks"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbookexecutions"]
+    verbs: ["get", "list", "watch", "create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["alertmanagers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: helios-admin
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps", "secrets", "namespaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["prometheuses", "servicemonitors", "podmonitors", "prometheusrules", "alertmanagers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbooks", "runbookexecutions"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["helios.io"]
+    resources: ["runbookexecutions/approval"]
+    verbs: ["update"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log", "pods/exec"]
+    verbs: ["get", "list", "create"]

@@ -1,0 +1,82 @@
+## Helios - Large scale tier (500-2000 devices)
+
+gnmic:
+  replicas: 5
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "2"
+    limits:
+      memory: "2Gi"
+      cpu: "4"
+
+prometheus:
+  shards: 4
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+
+thanos-store:
+  replicas: 3
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "1"
+    limits:
+      memory: "2Gi"
+      cpu: "2"
+
+minio-tenant:
+  replicas: 4
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "1"
+    limits:
+      memory: "2Gi"
+      cpu: "2"
+
+goflow2:
+  replicas: 4
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "1"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
+
+flowEnricher:
+  replicas: 6
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "1"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
+
+kafka:
+  brokers: 3
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+
+clickhouse:
+  shards: 2
+  replicas: 2
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"

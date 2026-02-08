@@ -1,0 +1,14 @@
+{{- range $ns := list "helios-integration" "helios-collection" "helios-storage" "helios-visualization" "helios-automation" "helios-flows" }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: helios
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    helm.sh/chart: {{ include "helios.chart" $ }}
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+{{- end }}

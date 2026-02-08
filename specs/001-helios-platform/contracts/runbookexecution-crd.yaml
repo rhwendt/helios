@@ -1,0 +1,151 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: runbookexecutions.helios.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+spec:
+  group: helios.io
+  names:
+    kind: RunbookExecution
+    listKind: RunbookExecutionList
+    plural: runbookexecutions
+    singular: runbookexecution
+    shortNames:
+      - rbe
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Runbook
+          type: string
+          jsonPath: .spec.runbookRef.name
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Triggered By
+          type: string
+          jsonPath: .spec.triggeredBy
+        - name: Source
+          type: string
+          jsonPath: .spec.triggerSource
+        - name: Duration
+          type: string
+          jsonPath: .status.duration
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          required: [spec]
+          properties:
+            spec:
+              type: object
+              required: [runbookRef, triggeredBy]
+              properties:
+                runbookRef:
+                  type: object
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                      description: Defaults to execution namespace
+                parameters:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  description: Dynamic parameter values matching runbook parameter definitions
+                triggeredBy:
+                  type: string
+                  description: User identity (email or username)
+                triggerSource:
+                  type: string
+                  enum: [manual, alert, scheduled, api]
+                  default: manual
+                alertRef:
+                  type: string
+                  description: Alert name for alert-triggered executions
+                dryRun:
+                  type: boolean
+                  default: false
+                  description: Simulate execution without applying changes
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum:
+                    - Pending
+                    - PendingApproval
+                    - Approved
+                    - Running
+                    - Completed
+                    - Failed
+                    - Cancelled
+                    - TimedOut
+                    - RollingBack
+                    - RolledBack
+                startTime:
+                  type: string
+                  format: date-time
+                completionTime:
+                  type: string
+                  format: date-time
+                duration:
+                  type: string
+                  description: Human-readable duration
+                approvedBy:
+                  type: string
+                approvedAt:
+                  type: string
+                  format: date-time
+                message:
+                  type: string
+                  description: Human-readable status message
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      status:
+                        type: string
+                        enum: [Pending, Running, Completed, Failed, Skipped]
+                      startTime:
+                        type: string
+                        format: date-time
+                      completionTime:
+                        type: string
+                        format: date-time
+                      output:
+                        type: string
+                        description: Step result or device response
+                      error:
+                        type: string
+                        description: Error message if step failed
+                jobName:
+                  type: string
+                  description: Name of the executor K8s Job
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string

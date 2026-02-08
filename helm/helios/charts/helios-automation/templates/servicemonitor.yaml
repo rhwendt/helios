@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "helios.fullname" . }}-operator
+  namespace: helios-automation
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+    app.kubernetes.io/part-of: helios
+spec:
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: runbook-operator
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helios.fullname" . }}-operator-metrics
+  namespace: helios-automation
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "helios.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator

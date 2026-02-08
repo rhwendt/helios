@@ -1,0 +1,52 @@
+suite: Target Generator CronJob
+templates:
+  - templates/cronjob-target-sync.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should create a CronJob
+    asserts:
+      - isKind:
+          of: CronJob
+
+  - it: should use schedule from values
+    asserts:
+      - equal:
+          path: spec.schedule
+          value: "*/5 * * * *"
+
+  - it: should override schedule
+    set:
+      targetGenerator:
+        schedule: "*/10 * * * *"
+    asserts:
+      - equal:
+          path: spec.schedule
+          value: "*/10 * * * *"
+
+  - it: should use a ServiceAccount
+    asserts:
+      - isNotEmpty:
+          path: spec.jobTemplate.spec.template.spec.serviceAccountName
+
+  - it: should mount NetBox secret
+    asserts:
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.volumes
+          content:
+            name: netbox-credentials
+          any: true
+
+  - it: should mount NetBox secret as env
+    asserts:
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: NETBOX_TOKEN
+          any: true
+
+  - it: should set concurrencyPolicy to Forbid
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid

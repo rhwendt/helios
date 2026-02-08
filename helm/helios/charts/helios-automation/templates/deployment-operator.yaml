@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helios.fullname" . }}-operator
+  namespace: helios-automation
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runbook-operator
+spec:
+  replicas: {{ .Values.operator.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: runbook-operator
+  template:
+    metadata:
+      labels:
+        {{- include "helios.labels" . | nindent 8 }}
+        app.kubernetes.io/component: runbook-operator
+    spec:
+      serviceAccountName: {{ include "helios.fullname" . }}-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: operator
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy | default "IfNotPresent" }}
+          args:
+            - --leader-elect={{ .Values.operator.leaderElect | default true }}
+            - --metrics-bind-address=:8080
+            - --health-probe-bind-address=:8081
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

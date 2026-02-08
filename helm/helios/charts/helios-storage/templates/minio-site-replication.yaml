@@ -1,0 +1,60 @@
+{{- if eq ((.Values.global).storageTopology | default "single-dc-minio") "multi-dc-minio" }}
+{{- if .Values.minio.siteReplication }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "helios.fullname" . }}-minio-site-replication
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+  annotations:
+    helm.sh/hook: post-install
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "helios.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: minio-site-replication
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              {{- range $i, $site := .Values.minio.siteReplication.sites }}
+              mc alias set site{{ $i }} {{ $site.endpoint }} $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+              {{- end }}
+              mc admin replicate add \
+              {{- range $i, $site := .Values.minio.siteReplication.sites }}
+                site{{ $i }}{{ if not (eq $i (sub (len $.Values.minio.siteReplication.sites) 1)) }} \{{ end }}
+              {{- end }}
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helios.fullname" . }}-minio-credentials
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helios.fullname" . }}-minio-credentials
+                  key: root-password
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+{{- end }}
+{{- end }}

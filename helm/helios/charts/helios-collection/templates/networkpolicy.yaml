@@ -1,0 +1,78 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-collection
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: collection
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: collection
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Prometheus to scrape metrics
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/component: monitoring
+      ports:
+        - port: {{ .Values.gnmic.prometheusPort }}
+          protocol: TCP
+        - port: 9116
+          protocol: TCP
+        - port: 9115
+          protocol: TCP
+    # Allow gnmic clustering peer discovery
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gnmic
+      ports:
+        - port: {{ .Values.gnmic.apiPort }}
+          protocol: TCP
+  egress:
+    # gNMI to network devices (standard ports)
+    - to:
+        {{- range .Values.networkPolicy.allowedCIDRs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+      ports:
+        - port: 6030
+          protocol: TCP
+        - port: 57400
+          protocol: TCP
+    # SNMP to network devices
+    - to:
+        {{- range .Values.networkPolicy.allowedCIDRs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+      ports:
+        - port: 161
+          protocol: UDP
+    # Prometheus remote-write
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/component: monitoring
+      ports:
+        - port: 9090
+          protocol: TCP
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # gnmic clustering peer communication
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gnmic
+      ports:
+        - port: {{ .Values.gnmic.apiPort }}
+          protocol: TCP

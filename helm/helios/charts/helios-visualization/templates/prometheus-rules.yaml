@@ -1,0 +1,76 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: helios-network-alerts
+  namespace: helios-visualization
+  labels:
+    app.kubernetes.io/name: prometheus-rules
+    app.kubernetes.io/component: alerting
+    app.kubernetes.io/part-of: helios
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  groups:
+    - name: helios-network-alerts
+      rules:
+        - alert: DeviceUnreachable
+          expr: up{job=~"snmp|gnmic"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              Device {{`{{ $labels.instance }}`}} is unreachable
+            description: >-
+              Device {{`{{ $labels.instance }}`}} has been unreachable for more than 2 minutes.
+            runbook_url: https://helios.example.com/runbooks/device-unreachable
+
+        - alert: InterfaceErrorRate
+          expr: >-
+            rate(ifInErrors[5m]) / (rate(ifInOctets[5m]) + 1) > 0.01
+            or
+            rate(ifOutErrors[5m]) / (rate(ifOutOctets[5m]) + 1) > 0.01
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Interface error rate >1% on {{`{{ $labels.instance }}`}} {{`{{ $labels.ifName }}`}}
+            description: >-
+              Interface {{`{{ $labels.ifName }}`}} on {{`{{ $labels.instance }}`}} has an error rate exceeding 1% for 5 minutes.
+            runbook_url: https://helios.example.com/runbooks/interface-errors
+
+        - alert: BGPSessionDown
+          expr: bgpPeerState != 6
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              BGP session down on {{`{{ $labels.instance }}`}} peer {{`{{ $labels.bgpPeerRemoteAddr }}`}}
+            description: >-
+              BGP session with peer {{`{{ $labels.bgpPeerRemoteAddr }}`}} on {{`{{ $labels.instance }}`}} is not in Established state.
+            runbook_url: https://helios.example.com/runbooks/bgp-session-down
+
+        - alert: HighCPU
+          expr: device_cpu_utilization > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              High CPU on {{`{{ $labels.instance }}`}} ({{`{{ $value }}`}}%)
+            description: >-
+              Device {{`{{ $labels.instance }}`}} CPU utilization has been above 80% for 5 minutes.
+            runbook_url: https://helios.example.com/runbooks/high-cpu
+
+        - alert: HighMemory
+          expr: device_memory_utilization > 85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              High memory on {{`{{ $labels.instance }}`}} ({{`{{ $value }}`}}%)
+            description: >-
+              Device {{`{{ $labels.instance }}`}} memory utilization has been above 85% for 5 minutes.
+            runbook_url: https://helios.example.com/runbooks/high-memory

@@ -1,0 +1,73 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: interface-bounce
+  namespace: helios-automation
+spec:
+  name: Interface Bounce
+  description: |
+    Disable and re-enable a network interface to clear transient errors.
+    Waits 10 seconds between disable and enable, then verifies the interface
+    returns to operational state.
+  category: interface
+  riskLevel: medium
+  requiresApproval: false
+  cooldown: "5m"
+  allowedRoles:
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname
+    - name: interface
+      type: interface
+      required: true
+      description: Interface to bounce (e.g., Ethernet1/1)
+  steps:
+    - name: get-current-state
+      action: gnmi_get
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/state/oper-status
+    - name: disable-interface
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/config/enabled
+        value: "false"
+        encoding: json_ietf
+    - name: wait-for-shutdown
+      action: wait
+      config:
+        duration: "10s"
+    - name: enable-interface
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/config/enabled
+        value: "true"
+        encoding: json_ietf
+    - name: wait-for-convergence
+      action: wait
+      config:
+        duration: "15s"
+    - name: verify-interface-up
+      action: gnmi_get
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/state/oper-status
+    - name: notify-completion
+      action: notify
+      config:
+        channel: slack
+        message: "Interface {{ "{{" }} .Parameters.interface {{ "}}" }} on {{ "{{" }} .Parameters.device {{ "}}" }} has been bounced"
+  rollback:
+    - name: re-enable-interface
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/config/enabled
+        value: "true"
+        encoding: json_ietf

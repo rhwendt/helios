@@ -1,0 +1,5 @@
+apiVersion: v2
+name: helios-visualization
+description: Grafana dashboards and Alertmanager routing
+version: 0.1.0
+type: application

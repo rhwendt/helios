@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helios.fullname" . }}-goflow2-udp
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: goflow2
+spec:
+  type: LoadBalancer
+  ports:
+    {{- range .Values.goflow2.udpPorts }}
+    - name: udp-{{ . }}
+      port: {{ . }}
+      targetPort: {{ . }}
+      protocol: UDP
+    {{- end }}
+  selector:
+    {{- include "helios.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: goflow2

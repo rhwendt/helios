@@ -1,0 +1,71 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ include "helios.fullname" . }}-kafka
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka
+spec:
+  kafka:
+    version: 3.7.0
+    replicas: {{ .Values.kafka.brokers | default 3 }}
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+    config:
+      offsets.topic.replication.factor: {{ min (.Values.kafka.brokers | default 3 | int) 3 }}
+      transaction.state.log.replication.factor: {{ min (.Values.kafka.brokers | default 3 | int) 3 }}
+      transaction.state.log.min.isr: {{ min (.Values.kafka.brokers | default 3 | int) 2 }}
+      default.replication.factor: {{ min (.Values.kafka.brokers | default 3 | int) 3 }}
+      min.insync.replicas: {{ min (.Values.kafka.brokers | default 3 | int) 2 }}
+      log.retention.hours: 168
+      log.segment.bytes: 1073741824
+    storage:
+      type: persistent-claim
+      size: 50Gi
+      deleteClaim: false
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: {{ include "helios.fullname" . }}-kafka-metrics
+          key: kafka-metrics-config.yml
+  zookeeper:
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: 10Gi
+      deleteClaim: false
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helios.fullname" . }}-kafka-metrics
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka
+data:
+  kafka-metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+      - pattern: "kafka.server<type=(.+), name=(.+), clientId=(.+), topic=(.+), partition=(.*)>Value"
+        name: kafka_server_$1_$2
+        type: GAUGE
+        labels:
+          clientId: "$3"
+          topic: "$4"
+          partition: "$5"
+      - pattern: "kafka.server<type=(.+), name=(.+)>Value"
+        name: kafka_server_$1_$2
+        type: GAUGE

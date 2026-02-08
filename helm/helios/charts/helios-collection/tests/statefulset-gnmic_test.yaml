@@ -1,0 +1,87 @@
+suite: gnmic StatefulSet
+templates:
+  - templates/statefulset-gnmic.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should set replica count from values
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: should use correct container image
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/openconfig/gnmic:latest
+
+  - it: should create a headless Service via serviceName
+    asserts:
+      - isNotEmpty:
+          path: spec.serviceName
+
+  - it: should include clustering args when enabled
+    set:
+      gnmic:
+        clusteringEnabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--clustering-enable"
+
+  - it: should not include clustering args when disabled
+    set:
+      gnmic:
+        clusteringEnabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--clustering-enable"
+
+  - it: should mount config volume
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: /etc/gnmic
+          any: true
+
+  - it: should mount targets volume
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: targets
+            mountPath: /etc/gnmic/targets
+          any: true
+
+  - it: should expose API port
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: api
+            containerPort: 7890
+          any: true
+
+  - it: should expose Prometheus metrics port
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: metrics
+            containerPort: 9804
+          any: true
+
+  - it: should override replica count
+    set:
+      gnmic:
+        replicas: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5

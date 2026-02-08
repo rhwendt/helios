@@ -1,0 +1,92 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Active Alerts",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "ALERTS{alertstate=\"firing\", site=~\"$site\"}",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "alertname": "Alert",
+              "instance": "Device",
+              "severity": "Severity",
+              "site": "Site"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Alert History Timeline",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count by (alertname) (ALERTS{alertstate=\"firing\", site=~\"$site\"})",
+          "legendFormat": "{{ alertname }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 50 } }
+      }
+    },
+    {
+      "title": "Alerts by Severity",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count by (severity) (ALERTS{alertstate=\"firing\", site=~\"$site\"})",
+          "legendFormat": "{{ severity }}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "title": "Alerts by Site",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "count by (site) (ALERTS{alertstate=\"firing\", site=~\"$site\"})",
+          "legendFormat": "{{ site }}",
+          "instant": true
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "alerts", "overview"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(ALERTS, site)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Alerts Overview",
+  "uid": "helios-alerts-overview"
+}

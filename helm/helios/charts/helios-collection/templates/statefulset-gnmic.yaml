@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-gnmic
+  labels:
+    app.kubernetes.io/name: gnmic
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: collection
+spec:
+  serviceName: {{ .Release.Name }}-gnmic-headless
+  replicas: {{ .Values.gnmic.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gnmic
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gnmic
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: collection
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: {{ .Release.Name }}-gnmic
+      containers:
+        - name: gnmic
+          image: {{ .Values.gnmic.image.repository }}:{{ .Values.gnmic.image.tag }}
+          imagePullPolicy: {{ .Values.gnmic.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "subscribe"
+            - "--config"
+            - "/etc/gnmic/gnmic.yaml"
+            - "--api-address"
+            - ":{{ .Values.gnmic.apiPort }}"
+            {{- if .Values.gnmic.clusteringEnabled }}
+            - "--clustering-enable"
+            {{- end }}
+          ports:
+            - name: api
+              containerPort: {{ .Values.gnmic.apiPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.gnmic.prometheusPort }}
+              protocol: TCP
+          env:
+            - name: GNMIC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-gnmic-credentials
+                  key: username
+            - name: GNMIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-gnmic-credentials
+                  key: password
+          volumeMounts:
+            - name: config
+              mountPath: /etc/gnmic
+            - name: targets
+              mountPath: /etc/gnmic/targets
+          resources:
+            {{- toYaml .Values.gnmic.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-gnmic-config
+        - name: targets
+          configMap:
+            name: {{ .Release.Name }}-gnmic-targets

@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "helios.fullname" . }}-clickhouse-schema
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse-schema
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        {{- include "helios.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: clickhouse-schema
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      restartPolicy: OnFailure
+      containers:
+        - name: schema-apply
+          image: clickhouse/clickhouse-client:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              CLICKHOUSE_HOST="{{ include "helios.fullname" . }}-clickhouse.helios-flows.svc.cluster.local"
+              echo "Waiting for ClickHouse to be ready..."
+              until clickhouse-client --host="$CLICKHOUSE_HOST" --query="SELECT 1" 2>/dev/null; do
+                echo "ClickHouse not ready, retrying in 5s..."
+                sleep 5
+              done
+              echo "Applying migration 001_create_flows_raw.sql..."
+              clickhouse-client --host="$CLICKHOUSE_HOST" --multiquery < /migrations/001_create_flows_raw.sql
+              echo "Applying migration 002_create_flows_1m.sql..."
+              clickhouse-client --host="$CLICKHOUSE_HOST" --multiquery < /migrations/002_create_flows_1m.sql
+              echo "Applying migration 003_create_flows_1h.sql..."
+              clickhouse-client --host="$CLICKHOUSE_HOST" --multiquery < /migrations/003_create_flows_1h.sql
+              echo "All migrations applied successfully."
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+              readOnly: true
+      volumes:
+        - name: migrations
+          configMap:
+            name: {{ include "helios.fullname" . }}-clickhouse-migrations
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helios.fullname" . }}-clickhouse-migrations
+  namespace: helios-flows
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse-schema
+data:
+  001_create_flows_raw.sql: |
+    {{- .Files.Get "../../clickhouse/migrations/001_create_flows_raw.sql" | nindent 4 }}
+  002_create_flows_1m.sql: |
+    {{- .Files.Get "../../clickhouse/migrations/002_create_flows_1m.sql" | nindent 4 }}
+  003_create_flows_1h.sql: |
+    {{- .Files.Get "../../clickhouse/migrations/003_create_flows_1h.sql" | nindent 4 }}

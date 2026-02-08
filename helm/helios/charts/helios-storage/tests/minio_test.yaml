@@ -1,0 +1,68 @@
+suite: MinIO StatefulSet tests
+templates:
+  - templates/minio.yaml
+tests:
+  - it: should create MinIO StatefulSet with 4 replicas (all tiers)
+    set:
+      minio:
+        replicas: 4
+        erasureCoding: true
+        buckets:
+          - name: thanos
+            policy: none
+            purge: false
+    asserts:
+      - isKind:
+          of: StatefulSet
+        documentIndex: 0
+      - equal:
+          path: spec.replicas
+          value: 4
+        documentIndex: 0
+
+  - it: should use parallel pod management
+    set:
+      minio:
+        replicas: 4
+        erasureCoding: true
+        buckets:
+          - name: thanos
+    asserts:
+      - equal:
+          path: spec.podManagementPolicy
+          value: Parallel
+        documentIndex: 0
+
+  - it: should create headless service
+    set:
+      minio:
+        replicas: 4
+        erasureCoding: true
+        buckets:
+          - name: thanos
+    asserts:
+      - isKind:
+          of: Service
+        documentIndex: 1
+      - equal:
+          path: spec.clusterIP
+          value: None
+        documentIndex: 1
+
+  - it: should include bucket init job
+    set:
+      minio:
+        replicas: 4
+        erasureCoding: true
+        buckets:
+          - name: thanos
+            policy: none
+            purge: false
+    asserts:
+      - isKind:
+          of: Job
+        documentIndex: 3
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+        documentIndex: 3

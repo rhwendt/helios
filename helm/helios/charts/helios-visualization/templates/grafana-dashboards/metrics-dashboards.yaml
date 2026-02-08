@@ -1,0 +1,27 @@
+{{- $dashboards := list
+  "network-overview"
+  "interface-analytics"
+  "device-health"
+  "site-overview"
+  "latency-reachability"
+  "bgp-status"
+  "top-talkers-metrics"
+  "alerts-overview"
+}}
+{{- range $name := $dashboards }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-{{ $name }}
+  namespace: helios-visualization
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/part-of: helios
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    grafana_dashboard: "1"
+data:
+  {{ $name }}.json: |-
+    {{- $.Files.Get (printf "dashboards/metrics/%s.json" $name) | nindent 4 }}
+{{- end }}

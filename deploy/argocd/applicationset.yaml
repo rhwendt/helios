@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: helios
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            helios.io/enabled: "true"
+        values:
+          scaleTier: "{{metadata.labels.helios.io/scale-tier}}"
+          datacenter: "{{metadata.labels.helios.io/datacenter}}"
+          region: "{{metadata.labels.helios.io/region}}"
+          compactorEnabled: "{{metadata.labels.helios.io/compactor-enabled}}"
+  template:
+    metadata:
+      name: "helios-{{name}}"
+      namespace: argocd
+    spec:
+      project: helios
+      source:
+        repoURL: https://github.com/rhwendt/helios.git
+        targetRevision: HEAD
+        path: helm/helios
+        helm:
+          valueFiles:
+            - values.yaml
+            - "values-{{values.scaleTier}}.yaml"
+          parameters:
+            - name: global.datacenter
+              value: "{{values.datacenter}}"
+            - name: global.clusterName
+              value: "{{name}}"
+            - name: thanos.compactor.enabled
+              value: "{{values.compactorEnabled}}"
+      destination:
+        server: "{{server}}"
+        namespace: helios-storage
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

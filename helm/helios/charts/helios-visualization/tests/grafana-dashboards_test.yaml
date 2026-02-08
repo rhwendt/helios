@@ -1,0 +1,85 @@
+suite: Grafana dashboard ConfigMaps
+templates:
+  - templates/grafana-dashboards.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should create 8 metrics dashboard ConfigMaps
+    asserts:
+      - hasDocuments:
+          count: 8
+
+  - it: should all be ConfigMaps
+    asserts:
+      - isKind:
+          of: ConfigMap
+
+  - it: should have Grafana sidecar dashboard label on all documents
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have Grafana sidecar dashboard label on second document
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have Grafana sidecar dashboard label on third document
+    documentIndex: 2
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have Grafana sidecar dashboard label on fourth document
+    documentIndex: 3
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have Grafana sidecar dashboard label on fifth document
+    documentIndex: 4
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have Grafana sidecar dashboard label on sixth document
+    documentIndex: 5
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have Grafana sidecar dashboard label on seventh document
+    documentIndex: 6
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have Grafana sidecar dashboard label on eighth document
+    documentIndex: 7
+    asserts:
+      - equal:
+          path: metadata.labels["grafana_dashboard"]
+          value: "1"
+
+  - it: should have helios part-of label
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/part-of"]
+          value: helios
+
+  - it: should be in helios-visualization namespace
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: helios-visualization

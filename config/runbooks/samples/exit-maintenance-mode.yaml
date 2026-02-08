@@ -1,0 +1,43 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: exit-maintenance-mode
+  namespace: helios-automation
+spec:
+  name: Exit Device Maintenance Mode
+  description: |
+    Remove a device from maintenance mode by clearing IGP overload bit
+    and re-enabling normal alerting.
+  category: system
+  riskLevel: medium
+  requiresApproval: false
+  cooldown: "5m"
+  allowedRoles:
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+  steps:
+    - name: clear-isis-overload
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS]/isis/global/config/set-overload-bit
+        value: "false"
+        encoding: json_ietf
+    - name: wait-for-convergence
+      action: wait
+      config:
+        duration: "60s"
+    - name: verify-routing
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        path: /network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS]/isis/interfaces
+    - name: notify-maintenance-end
+      action: notify
+      config:
+        channel: slack
+        message: "Device {{ "{{" }} .Parameters.device {{ "}}" }} exited maintenance mode"

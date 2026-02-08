@@ -1,0 +1,34 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: backup-config
+  namespace: helios-automation
+spec:
+  name: Backup Device Configuration
+  description: |
+    Retrieve the running configuration from a device via gNMI and store it.
+    Read-only operation with no risk of disruption.
+  category: system
+  riskLevel: low
+  requiresApproval: false
+  cooldown: "5m"
+  allowedRoles:
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+  steps:
+    - name: get-running-config
+      action: gnmi_get
+      timeout: "30s"
+      config:
+        path: /system/config
+        encoding: json_ietf
+    - name: notify-backup-complete
+      action: notify
+      config:
+        channel: slack
+        message: "Configuration backup completed for {{ "{{" }} .Parameters.device {{ "}}" }}"
+        attachResults: true

@@ -1,0 +1,49 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: {{ include "helios.fullname" . }}-prometheus
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  replicas: 1
+  shards: {{ .Values.prometheus.shards | default 1 }}
+  version: v2.51.0
+  retention: {{ .Values.prometheus.retention | default "2h" }}
+  externalLabels:
+    cluster: {{ .Values.global.clusterName | default "helios" }}
+    datacenter: {{ .Values.global.datacenter | default "dc1" }}
+    replica: $(POD_NAME)
+  resources:
+    {{- toYaml .Values.prometheus.resources | nindent 4 }}
+  serviceAccountName: {{ include "helios.fullname" . }}-prometheus
+  serviceMonitorSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: helios
+  podMonitorSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: helios
+  ruleSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: helios
+  thanos:
+    image: quay.io/thanos/thanos:v0.35.0
+    objectStorageConfig:
+      name: {{ include "helios.fullname" . }}-thanos-objstore
+      key: objstore.yml
+  # Note: Container-level securityContext (capabilities.drop) is managed by the Prometheus Operator and cannot be overridden in the CR spec.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 2000
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi

@@ -1,0 +1,79 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Protocol Breakdown by Bytes",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT Proto, sum(Bytes) as total_bytes FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY Proto ORDER BY total_bytes DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Protocol Breakdown by Packets",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT Proto, sum(Packets) as total_packets FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY Proto ORDER BY total_packets DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Destination Ports",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT DstPort, sum(Bytes) as total_bytes FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY DstPort ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Source Ports",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcPort, sum(Bytes) as total_bytes FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY SrcPort ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "TCP Flag Distribution",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT TCPFlags, count() as flow_count, sum(Bytes) as total_bytes FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) AND Proto = 6 GROUP BY TCPFlags ORDER BY flow_count DESC LIMIT 16",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "flows", "protocol-distribution"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Helios - Protocol Distribution",
+  "uid": "helios-protocol-distribution",
+  "version": 1
+}

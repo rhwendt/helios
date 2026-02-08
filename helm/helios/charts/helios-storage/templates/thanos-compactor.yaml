@@ -1,0 +1,106 @@
+{{- if .Values.thanos.compactor.enabled | default true }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "helios.fullname" . }}-thanos-compactor
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-compactor
+spec:
+  serviceName: {{ include "helios.fullname" . }}-thanos-compactor
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: thanos-compactor
+  template:
+    metadata:
+      labels:
+        {{- include "helios.labels" . | nindent 8 }}
+        app.kubernetes.io/component: thanos-compactor
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: thanos-compactor
+          image: quay.io/thanos/thanos:v0.35.0
+          args:
+            - compact
+            - --log.level=info
+            - --data-dir=/var/thanos/compact
+            - --objstore.config-file=/etc/thanos/objstore.yml
+            - --retention.resolution-raw={{ .Values.thanos.compactor.retention.raw | default "14d" }}
+            - --retention.resolution-5m={{ .Values.thanos.compactor.retention.fiveMin | default "30d" }}
+            - --retention.resolution-1h={{ .Values.thanos.compactor.retention.oneHour | default "90d" }}
+            - --downsample.concurrency=1
+            - --compact.concurrency=1
+            - --wait
+          ports:
+            - name: http
+              containerPort: 10902
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /var/thanos/compact
+            - name: objstore-config
+              mountPath: /etc/thanos
+              readOnly: true
+      volumes:
+        - name: objstore-config
+          secret:
+            secretName: {{ include "helios.fullname" . }}-thanos-objstore
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "helios.fullname" . }}-thanos-compactor
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-compactor
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: thanos-compactor
+{{- end }}

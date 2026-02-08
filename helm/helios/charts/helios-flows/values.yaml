@@ -1,0 +1,34 @@
+goflow2:
+  replicas: 2
+  udpPorts:
+    - 2055
+    - 6343
+  kafkaTopic: helios-flows-raw
+
+kafka:
+  brokers: 3
+  topics:
+    - name: helios-flows-raw
+      partitions: 24
+      replicationFactor: 3
+    - name: helios-flows-enriched
+      partitions: 24
+      replicationFactor: 3
+
+flowEnricher:
+  replicas: 2
+  image:
+    repository: ghcr.io/rhwendt/helios/flow-enricher
+    tag: latest
+    pullPolicy: IfNotPresent
+  kafka:
+    consumer:
+      groupId: flow-enricher
+      topic: helios-flows-raw
+    producer:
+      topic: helios-flows-enriched
+
+clickhouse:
+  shards: 2
+  replicas: 2
+  storage: 100Gi

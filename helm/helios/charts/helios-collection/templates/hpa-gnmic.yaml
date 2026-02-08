@@ -1,0 +1,24 @@
+{{- if .Values.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-gnmic
+  labels:
+    app.kubernetes.io/name: gnmic
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: collection
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: {{ .Release.Name }}-gnmic
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.targetCPU }}
+{{- end }}

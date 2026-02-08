@@ -1,0 +1,75 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: helios-alertmanager-config
+  namespace: helios-visualization
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/component: alerting
+    app.kubernetes.io/part-of: helios
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  route:
+    groupBy:
+      - alertname
+      - datacenter
+      - device
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    receiver: default
+    routes:
+      - matchers:
+          - name: severity
+            value: critical
+            matchType: "="
+        receiver: pagerduty
+        repeatInterval: 5m
+        continue: false
+      - matchers:
+          - name: severity
+            value: warning
+            matchType: "="
+        receiver: slack
+        repeatInterval: 1h
+        continue: false
+      - matchers:
+          - name: severity
+            value: info
+            matchType: "="
+        receiver: email
+        repeatInterval: 12h
+        continue: false
+  receivers:
+    - name: default
+      {{- if .Values.alertmanager.routing.critical.webhookUrl }}
+      webhookConfigs:
+        - url: {{ .Values.alertmanager.routing.critical.webhookUrl | quote }}
+      {{- end }}
+    - name: pagerduty
+      pagerdutyConfigs:
+        - routingKey:
+            name: {{ .Values.alertmanager.routing.critical.secretRef | default "alertmanager-pagerduty" }}
+            key: routing-key
+          severity: >-
+            {{`{{ if eq .CommonLabels.severity "critical" }}critical{{ else }}warning{{ end }}`}}
+          description: >-
+            {{`{{ .CommonAnnotations.summary }}`}}
+    - name: slack
+      slackConfigs:
+        - apiURL:
+            name: {{ .Values.alertmanager.routing.warning.secretRef | default "alertmanager-slack" }}
+            key: webhook-url
+          channel: {{ .Values.alertmanager.routing.warning.channel | default "#helios-alerts" | quote }}
+          title: >-
+            {{`[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}`}}
+          text: >-
+            {{`{{ range .Alerts }}*{{ .Labels.device }}*: {{ .Annotations.summary }}{{ "\n" }}{{ end }}`}}
+          sendResolved: true
+    - name: email
+      emailConfigs:
+        - to: {{ .Values.alertmanager.routing.info.email | default "noc@example.com" | quote }}
+          from: {{ .Values.alertmanager.routing.info.from | default "helios@example.com" | quote }}
+          smarthost: {{ .Values.alertmanager.routing.info.smarthost | default "smtp.example.com:587" | quote }}
+          requireTLS: true
+          sendResolved: true

@@ -1,0 +1,64 @@
+suite: gnmic HPA
+templates:
+  - templates/hpa-gnmic.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should create an HPA when enabled
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+
+  - it: should not render when disabled
+    set:
+      hpa:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should set min replicas from values
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+
+  - it: should set max replicas from values
+    asserts:
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+
+  - it: should target CPU utilization from values
+    asserts:
+      - contains:
+          path: spec.metrics
+          content:
+            type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 70
+          any: true
+
+  - it: should override min/max replicas
+    set:
+      hpa:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 20
+        targetCPU: 80
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 20
+
+  - it: should reference gnmic StatefulSet
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: StatefulSet

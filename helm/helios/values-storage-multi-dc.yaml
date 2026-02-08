@@ -1,0 +1,24 @@
+## Storage topology: multi-dc-minio
+## Multiple datacenters with MinIO site replication
+## Compactor should only run in one DC (primary)
+
+global:
+  storageTopology: multi-dc-minio
+
+thanos:
+  compactor:
+    enabled: true  # Set to false on non-primary DCs
+  query:
+    additionalStores: []
+    # Add remote Thanos Store Gateway endpoints for cross-DC federation:
+    # - "thanos-store.dc2.example.com:10901"
+    # - "thanos-store.dc3.example.com:10901"
+
+minio:
+  replicas: 4
+  erasureCoding: true
+  siteReplication:
+    enabled: true
+    sites: []
+    # - endpoint: http://minio.dc1.example.com:9000
+    # - endpoint: http://minio.dc2.example.com:9000

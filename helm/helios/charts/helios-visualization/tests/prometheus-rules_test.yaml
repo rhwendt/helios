@@ -1,0 +1,76 @@
+suite: PrometheusRule alert rules
+templates:
+  - templates/prometheus-rules.yaml
+values:
+  - ../values.yaml
+tests:
+  - it: should be a PrometheusRule resource
+    asserts:
+      - isKind:
+          of: PrometheusRule
+      - isAPIVersion:
+          of: monitoring.coreos.com/v1
+
+  - it: should have helios part-of label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/part-of"]
+          value: helios
+
+  - it: should include DeviceUnreachable alert rule
+    asserts:
+      - contains:
+          path: spec.groups[0].rules
+          content:
+            alert: DeviceUnreachable
+          any: true
+
+  - it: should include InterfaceErrorRate alert rule
+    asserts:
+      - contains:
+          path: spec.groups[0].rules
+          content:
+            alert: InterfaceErrorRate
+          any: true
+
+  - it: should include BGPSessionDown alert rule
+    asserts:
+      - contains:
+          path: spec.groups[0].rules
+          content:
+            alert: BGPSessionDown
+          any: true
+
+  - it: should include HighCPU alert rule
+    asserts:
+      - contains:
+          path: spec.groups[0].rules
+          content:
+            alert: HighCPU
+          any: true
+
+  - it: should include HighMemory alert rule
+    asserts:
+      - contains:
+          path: spec.groups[0].rules
+          content:
+            alert: HighMemory
+          any: true
+
+  - it: should set DeviceUnreachable for duration 2m
+    asserts:
+      - contains:
+          path: spec.groups[0].rules
+          content:
+            alert: DeviceUnreachable
+            for: 2m
+          any: true
+
+  - it: should set BGPSessionDown for duration 1m
+    asserts:
+      - contains:
+          path: spec.groups[0].rules
+          content:
+            alert: BGPSessionDown
+            for: 1m
+          any: true

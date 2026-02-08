@@ -1,0 +1,149 @@
+## Helios Network Observability Platform - Default Values (Medium scale: 50-500 devices)
+
+global:
+  datacenter: "dc1"
+  storageTopology: "single-dc-minio"
+  clusterName: "helios"
+
+## Sub-chart enable flags
+kube-prometheus-stack:
+  enabled: true
+thanos:
+  enabled: true
+minio:
+  enabled: true
+strimzi-kafka-operator:
+  enabled: true
+clickhouse-operator:
+  enabled: true
+
+## helios-collection
+gnmic:
+  replicas: 3
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "1"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
+
+snmpExporter:
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+## helios-storage
+prometheus:
+  shards: 2
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+
+thanos-store:
+  replicas: 2
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1"
+
+minio-tenant:
+  replicas: 4
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1"
+
+kafka:
+  brokers: 3
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1"
+
+clickhouse:
+  shards: 1
+  replicas: 2
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+
+## helios-flows
+goflow2:
+  replicas: 2
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1"
+
+flowEnricher:
+  replicas: 3
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1"
+
+## helios-visualization
+grafana:
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+## helios-automation
+runbookOperator:
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+
+## helios-integration
+targetGenerator:
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+
+## NetworkPolicy defaults
+networkPolicy:
+  enabled: true
+  allowedCIDRs:
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"

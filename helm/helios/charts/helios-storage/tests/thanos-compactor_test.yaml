@@ -1,0 +1,65 @@
+suite: Thanos Compactor tests
+templates:
+  - templates/thanos-compactor.yaml
+tests:
+  - it: should always be a singleton (replicas 1)
+    set:
+      thanos:
+        compactor:
+          retention:
+            raw: 14d
+            fiveMin: 30d
+            oneHour: 90d
+        objstoreSecret:
+          external: false
+    asserts:
+      - isKind:
+          of: StatefulSet
+        documentIndex: 0
+      - equal:
+          path: spec.replicas
+          value: 1
+        documentIndex: 0
+
+  - it: should include PodDisruptionBudget
+    set:
+      thanos:
+        compactor:
+          retention:
+            raw: 14d
+            fiveMin: 30d
+            oneHour: 90d
+        objstoreSecret:
+          external: false
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+        documentIndex: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 1
+
+  - it: should configure retention from values
+    set:
+      thanos:
+        compactor:
+          retention:
+            raw: 7d
+            fiveMin: 14d
+            oneHour: 30d
+        objstoreSecret:
+          external: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--retention.resolution-raw=7d"
+        documentIndex: 0
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--retention.resolution-5m=14d"
+        documentIndex: 0
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--retention.resolution-1h=30d"
+        documentIndex: 0

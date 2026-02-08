@@ -1,0 +1,46 @@
+name: Helm Lint & Test
+on:
+  pull_request:
+    paths:
+      - 'helm/**'
+
+jobs:
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.0
+
+      - name: Add Helm repos
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add minio https://charts.min.io/
+          helm repo add strimzi https://strimzi.io/charts/
+          helm repo update
+
+      - name: Helm lint umbrella chart
+        run: helm lint helm/helios/
+
+      - name: Helm lint sub-charts
+        run: |
+          for chart in helm/helios/charts/helios-*/; do
+            echo "Linting $chart..."
+            helm lint "$chart"
+          done
+
+      - name: Install helm-unittest plugin
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest.git
+
+      - name: Run helm unittest
+        run: |
+          for chart in helm/helios/charts/helios-*/; do
+            if [ -d "$chart/tests" ]; then
+              echo "Testing $chart..."
+              helm unittest "$chart"
+            fi
+          done

@@ -1,0 +1,43 @@
+gnmic:
+  replicas: 2
+  image:
+    repository: ghcr.io/openconfig/gnmic
+    tag: latest
+    pullPolicy: IfNotPresent
+  clusteringEnabled: true
+  apiPort: 7890
+  prometheusPort: 9804
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  credentials:
+    external: true
+    storeRef: cluster-secret-store
+    remoteKey: helios/gnmic
+    refreshInterval: 1h
+
+snmpExporter:
+  enabled: true
+  image:
+    repository: prom/snmp-exporter
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 9116
+
+blackboxExporter:
+  enabled: true
+  image:
+    repository: prom/blackbox-exporter
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 9115
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPU: 70

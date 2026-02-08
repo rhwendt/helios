@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helios.fullname" . }}-thanos-query
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-query
+spec:
+  replicas: {{ .Values.thanos.query.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "helios.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: thanos-query
+  template:
+    metadata:
+      labels:
+        {{- include "helios.labels" . | nindent 8 }}
+        app.kubernetes.io/component: thanos-query
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: thanos-query
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: thanos-query
+          image: quay.io/thanos/thanos:v0.35.0
+          args:
+            - query
+            - --log.level=info
+            - --query.replica-label=replica
+            - --store=dnssrv+_grpc._tcp.{{ include "helios.fullname" . }}-prometheus-operated.helios-storage.svc.cluster.local
+            - --store=dnssrv+_grpc._tcp.{{ include "helios.fullname" . }}-thanos-store.helios-storage.svc.cluster.local
+            {{- range .Values.thanos.query.additionalStores }}
+            - --store={{ . }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 10902
+              protocol: TCP
+            - name: grpc
+              containerPort: 10901
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helios.fullname" . }}-thanos-query
+  namespace: helios-storage
+  labels:
+    {{- include "helios.labels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-query
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 10901
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    {{- include "helios.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: thanos-query

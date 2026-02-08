@@ -1,0 +1,5 @@
+apiVersion: v2
+name: helios-collection
+description: gNMI, SNMP, and blackbox metric collectors
+version: 0.1.0
+type: application

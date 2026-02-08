@@ -1,0 +1,122 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "BGP Neighbor State",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "bgpPeerState{instance=~\"$device\"}",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "instance": "Device",
+              "bgpPeerRemoteAddr": "Peer",
+              "bgpPeerState": "State",
+              "Value": "State Code"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Prefixes Received",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "bgpPeerPrefixesReceived{instance=~\"$device\"}",
+          "legendFormat": "{{ instance }} ← {{ bgpPeerRemoteAddr }}"
+        }
+      ]
+    },
+    {
+      "title": "Prefixes Sent",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "bgpPeerPrefixesSent{instance=~\"$device\"}",
+          "legendFormat": "{{ instance }} → {{ bgpPeerRemoteAddr }}"
+        }
+      ]
+    },
+    {
+      "title": "Session Uptime",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "bgpPeerFsmEstablishedTime{instance=~\"$device\"}",
+          "legendFormat": "{{ instance }} ↔ {{ bgpPeerRemoteAddr }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "BGP Flap Count (last 24h)",
+      "type": "bargauge",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "increase(bgpPeerFsmEstablishedTransitions{instance=~\"$device\"}[24h])",
+          "legendFormat": "{{ instance }} ↔ {{ bgpPeerRemoteAddr }}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "bgp", "routing"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(bgpPeerState, site)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "device",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(bgpPeerState{site=~\"$site\"}, instance)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "BGP Status",
+  "uid": "helios-bgp-status"
+}

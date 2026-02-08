@@ -1,0 +1,129 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Interface Traffic Rate (bps)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "rate(ifHCInOctets{instance=~\"$device\", ifName=~\"$interface\"}[$__rate_interval]) * 8",
+          "legendFormat": "{{ instance }} {{ ifName }} In"
+        },
+        {
+          "expr": "rate(ifHCOutOctets{instance=~\"$device\", ifName=~\"$interface\"}[$__rate_interval]) * 8 * -1",
+          "legendFormat": "{{ instance }} {{ ifName }} Out"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps", "custom": { "fillOpacity": 10 } }
+      }
+    },
+    {
+      "title": "Error / Discard Counters",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "rate(ifInErrors{instance=~\"$device\", ifName=~\"$interface\"}[$__rate_interval])",
+          "legendFormat": "{{ ifName }} In Errors"
+        },
+        {
+          "expr": "rate(ifOutErrors{instance=~\"$device\", ifName=~\"$interface\"}[$__rate_interval])",
+          "legendFormat": "{{ ifName }} Out Errors"
+        },
+        {
+          "expr": "rate(ifInDiscards{instance=~\"$device\", ifName=~\"$interface\"}[$__rate_interval])",
+          "legendFormat": "{{ ifName }} In Discards"
+        },
+        {
+          "expr": "rate(ifOutDiscards{instance=~\"$device\", ifName=~\"$interface\"}[$__rate_interval])",
+          "legendFormat": "{{ ifName }} Out Discards"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "pps" }
+      }
+    },
+    {
+      "title": "Interface Utilization %",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "rate(ifHCInOctets{instance=~\"$device\", ifName=~\"$interface\"}[$__rate_interval]) * 8 / ifHighSpeed / 1e6 * 100",
+          "legendFormat": "{{ ifName }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 95 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Top Talkers by Interface",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "topk(20, rate(ifHCInOctets{instance=~\"$device\"}[$__rate_interval]) * 8)",
+          "legendFormat": "{{ instance }} {{ ifName }}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps" }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "interface", "analytics"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(up{job=~\"snmp|gnmic\"}, site)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "device",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(up{job=~\"snmp|gnmic\", site=~\"$site\"}, instance)",
+        "includeAll": true,
+        "multi": true
+      },
+      {
+        "name": "interface",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(ifHCInOctets{instance=~\"$device\"}, ifName)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Interface Analytics",
+  "uid": "helios-interface-analytics"
+}

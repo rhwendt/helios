@@ -1,0 +1,77 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: drain-interface
+  namespace: helios-automation
+spec:
+  name: Drain Interface
+  description: |
+    Gracefully drain traffic from an interface by increasing IS-IS/OSPF metric
+    to max, waiting for convergence, then administratively disabling the interface.
+  category: interface
+  riskLevel: high
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: network-engineers
+  approvalTimeout: "1h"
+  cooldown: "10m"
+  allowedRoles:
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+    - name: interface
+      type: interface
+      required: true
+    - name: drain_wait_seconds
+      type: integer
+      required: false
+      default: 60
+      description: Seconds to wait for traffic to drain
+  steps:
+    - name: get-current-metric
+      action: gnmi_get
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/state
+    - name: set-max-metric
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/config/metric
+        value: "16777215"
+        encoding: json_ietf
+    - name: wait-for-drain
+      action: wait
+      config:
+        duration: "{{ "{{" }} .Parameters.drain_wait_seconds {{ "}}" }}s"
+    - name: disable-interface
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/config/enabled
+        value: "false"
+        encoding: json_ietf
+    - name: notify-complete
+      action: notify
+      config:
+        channel: slack
+        message: "Interface {{ "{{" }} .Parameters.interface {{ "}}" }} on {{ "{{" }} .Parameters.device {{ "}}" }} drained and disabled"
+  rollback:
+    - name: re-enable-interface
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/config/enabled
+        value: "true"
+        encoding: json_ietf
+    - name: restore-metric
+      action: gnmi_set
+      timeout: "10s"
+      config:
+        path: /interfaces/interface[name={{ "{{" }} .Parameters.interface {{ "}}" }}]/config/metric
+        value: "10"
+        encoding: json_ietf

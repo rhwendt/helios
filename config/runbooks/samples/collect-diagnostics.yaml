@@ -1,0 +1,52 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: collect-diagnostics
+  namespace: helios-automation
+spec:
+  name: Collect Diagnostics
+  description: |
+    Gather system health, interface status, and BGP neighbor information
+    from a device for diagnostic purposes. Read-only operation.
+  category: diagnostic
+  riskLevel: low
+  requiresApproval: false
+  cooldown: "1m"
+  allowedRoles:
+    - helios-viewer
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname
+  steps:
+    - name: get-system-info
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        paths:
+          - /system/state
+          - /components/component/state/temperature
+          - /system/memory/state
+          - /system/cpus/cpu/state
+    - name: get-interface-status
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        paths:
+          - /interfaces/interface/state/oper-status
+          - /interfaces/interface/state/counters
+    - name: get-bgp-neighbors
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        paths:
+          - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state
+    - name: notify-results
+      action: notify
+      config:
+        channel: slack
+        message: "Diagnostics collected for {{ "{{" }} .Parameters.device {{ "}}" }}"
+        attachResults: true

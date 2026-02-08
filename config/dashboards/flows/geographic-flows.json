@@ -1,0 +1,67 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Flows by Country (World Map)",
+      "type": "geomap",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcCountry as country, sum(Bytes) as total_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND SrcCountry != '' GROUP BY SrcCountry ORDER BY total_bytes DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Countries by Traffic",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcCountry, sum(Bytes) as total_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND SrcCountry != '' GROUP BY SrcCountry ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Destination Countries",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT DstCountry, sum(Bytes) as total_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND DstCountry != '' GROUP BY DstCountry ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Cross-Border Traffic Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT $__timeInterval(TimeReceived) as time, sum(Bytes) as cross_border_bytes FROM helios_flows.flows_enriched WHERE $__timeFilter(TimeReceived) AND SrcCountry != DstCountry AND SrcCountry != '' AND DstCountry != '' GROUP BY time ORDER BY time",
+          "format": "timeseries"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "flows", "geographic"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Helios - Geographic Flows",
+  "uid": "helios-geographic-flows",
+  "version": 1
+}

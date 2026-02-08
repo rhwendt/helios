@@ -1,0 +1,17 @@
+grafana:
+  replicas: 2
+  adminPassword:
+    secretRef: grafana-admin-credentials
+    key: password
+  datasources: []
+  sidecar:
+    enabled: true
+
+alertmanager:
+  routing:
+    critical:
+      receiver: pagerduty
+    warning:
+      receiver: slack
+    info:
+      receiver: email

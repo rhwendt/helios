@@ -1,0 +1,5 @@
+apiVersion: v2
+name: helios-automation
+description: Runbook Operator for automated remediation
+version: 0.1.0
+type: application

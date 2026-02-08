@@ -1,0 +1,87 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Top Interfaces by Throughput (In)",
+      "type": "bargauge",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "topk(20, rate(ifHCInOctets{site=~\"$site\"}[$__rate_interval]) * 8)",
+          "legendFormat": "{{ instance }} {{ ifName }}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps" }
+      }
+    },
+    {
+      "title": "Top Interfaces by Throughput (Out)",
+      "type": "bargauge",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "topk(20, rate(ifHCOutOctets{site=~\"$site\"}[$__rate_interval]) * 8)",
+          "legendFormat": "{{ instance }} {{ ifName }}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps" }
+      }
+    },
+    {
+      "title": "Top Devices by Total Traffic",
+      "type": "bargauge",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "topk(20, sum by (instance) (rate(ifHCInOctets{site=~\"$site\"}[$__rate_interval]) + rate(ifHCOutOctets{site=~\"$site\"}[$__rate_interval])) * 8)",
+          "legendFormat": "{{ instance }}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps" }
+      }
+    },
+    {
+      "title": "Bandwidth Ranking Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "thanos" },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (instance) (rate(ifHCInOctets{site=~\"$site\"}[$__rate_interval]) + rate(ifHCOutOctets{site=~\"$site\"}[$__rate_interval])) * 8)",
+          "legendFormat": "{{ instance }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps", "custom": { "fillOpacity": 10 } }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "top-talkers", "bandwidth"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "thanos" },
+        "query": "label_values(up{job=~\"snmp|gnmic\"}, site)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Top Talkers (Metrics)",
+  "uid": "helios-top-talkers-metrics"
+}

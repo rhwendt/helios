@@ -1,0 +1,41 @@
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: arista-mlag-check
+  namespace: helios-automation
+spec:
+  name: Arista MLAG Health Check
+  description: |
+    Check MLAG status on an Arista EOS device including peer link state,
+    domain config consistency, and MLAG interface statuses.
+  category: diagnostic
+  riskLevel: low
+  requiresApproval: false
+  cooldown: "1m"
+  allowedRoles:
+    - helios-viewer
+    - helios-engineer
+    - helios-admin
+  parameters:
+    - name: device
+      type: device
+      required: true
+  steps:
+    - name: get-mlag-state
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        paths:
+          - /mlag/state
+          - /mlag/config
+    - name: get-mlag-interfaces
+      action: gnmi_get
+      timeout: "15s"
+      config:
+        path: /mlag/interfaces/interface/state
+    - name: notify-results
+      action: notify
+      config:
+        channel: slack
+        message: "MLAG check completed for {{ "{{" }} .Parameters.device {{ "}}" }}"
+        attachResults: true

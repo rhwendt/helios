@@ -1,0 +1,9 @@
+targetGenerator:
+  schedule: "*/5 * * * *"
+
+netbox:
+  url: ""
+  filters: {}
+
+rbac:
+  enabled: true

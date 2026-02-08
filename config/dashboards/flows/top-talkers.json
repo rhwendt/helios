@@ -1,0 +1,67 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Top Source IPs by Bytes",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcAddr, sum(Bytes) as total_bytes FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY SrcAddr ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Destination IPs by Bytes",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT DstAddr, sum(Bytes) as total_bytes FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY DstAddr ORDER BY total_bytes DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Conversations",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT SrcAddr, DstAddr, Proto, sum(Bytes) as total_bytes, sum(Packets) as total_packets FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY SrcAddr, DstAddr, Proto ORDER BY total_bytes DESC LIMIT 50",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Protocols by Traffic Volume",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse" },
+      "targets": [
+        {
+          "rawSql": "SELECT Proto, sum(Bytes) as total_bytes FROM helios_flows.flows WHERE $__timeFilter(TimeReceived) GROUP BY Proto ORDER BY total_bytes DESC LIMIT 10",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["helios", "flows", "top-talkers"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Helios - Top Talkers",
+  "uid": "helios-top-talkers",
+  "version": 1
+}

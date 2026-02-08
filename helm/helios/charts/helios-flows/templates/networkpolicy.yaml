@@ -1,0 +1,126 @@
+## NetworkPolicy for goflow2 — allow UDP ingress and Kafka egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-goflow2
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: goflow2
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: goflow2
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow NetFlow/sFlow UDP ingress
+    - ports:
+        - port: 2055
+          protocol: UDP
+        - port: 6343
+          protocol: UDP
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    # Kafka brokers
+    - ports:
+        - port: 9092
+          protocol: TCP
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+## NetworkPolicy for flow-enricher — allow Kafka and NetBox egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-flow-enricher
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: flow-enricher
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: flow-enricher
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+      ports:
+        - port: 9090
+          protocol: TCP
+  egress:
+    # Kafka brokers
+    - ports:
+        - port: 9092
+          protocol: TCP
+    # NetBox API (external)
+    - ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+## NetworkPolicy for ClickHouse — allow enricher ingress and Grafana queries
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-clickhouse
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: clickhouse
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Flow Enricher writes via Kafka engine (internal ClickHouse consumer)
+    # Grafana queries via HTTP interface
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helios
+      ports:
+        - port: 8123
+          protocol: TCP
+        - port: 9000
+          protocol: TCP
+  egress:
+    # Kafka brokers (for Kafka engine tables)
+    - ports:
+        - port: 9092
+          protocol: TCP
+    # ZooKeeper
+    - ports:
+        - port: 2181
+          protocol: TCP
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

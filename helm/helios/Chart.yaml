@@ -1,0 +1,27 @@
+apiVersion: v2
+name: helios
+description: Helios Network Observability Platform - CNCF-native, Kubernetes-first
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: kube-prometheus-stack
+    version: "~58.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: kube-prometheus-stack.enabled
+  - name: thanos
+    version: "~15.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: thanos.enabled
+  - name: minio
+    version: "~14.0"
+    repository: "https://charts.min.io/"
+    condition: minio.enabled
+  - name: strimzi-kafka-operator
+    version: "~0.40"
+    repository: "https://strimzi.io/charts/"
+    condition: strimzi-kafka-operator.enabled
+  - name: clickhouse-operator
+    version: "~0.23"
+    repository: "https://docs.altinity.com/clickhouse-operator/"
+    condition: clickhouse-operator.enabled

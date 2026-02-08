@@ -1,0 +1,15 @@
+name: helios-smoke
+topology:
+  nodes:
+    router1:
+      kind: linux
+      image: ghcr.io/hellt/network-multitool:latest
+      exec:
+        - ip addr add 10.0.0.1/24 dev eth1
+    router2:
+      kind: linux
+      image: ghcr.io/hellt/network-multitool:latest
+      exec:
+        - ip addr add 10.0.0.2/24 dev eth1
+  links:
+    - endpoints: ["router1:eth1", "router2:eth1"]
