@@ -1,5 +1,7 @@
 # Helios
 
+*Illuminate your network.*
+
 **CNCF-native network observability platform for Kubernetes.**
 
 Helios provides unified telemetry collection, flow analysis, visualization, and automated remediation for networks of 50 to 8,000+ devices across multiple datacenters.
