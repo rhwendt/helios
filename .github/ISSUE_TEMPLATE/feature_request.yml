@@ -1,0 +1,60 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to improve Helios? Describe it below.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which area does this relate to?
+      options:
+        - Flow Pipeline (goflow2 / Kafka / Flow Enricher / ClickHouse)
+        - Metrics Pipeline (Prometheus / Thanos / SNMP / gNMI)
+        - Visualization (Grafana Dashboards / Alerting)
+        - Automation (Runbook Operator / CRDs)
+        - Integration (NetBox / Target Generator)
+        - Deployment (Helm / ArgoCD)
+        - CI/CD
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this solve? Why is it needed?
+      placeholder: I need to monitor X but Helios currently doesn't support...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How do you think this should work?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any other approaches you've thought about?
+
+  - type: dropdown
+    id: scale
+    attributes:
+      label: Estimated Scope
+      options:
+        - Small (config change / single file)
+        - Medium (new feature in existing service)
+        - Large (new service / major refactor)
+    validations:
+      required: true

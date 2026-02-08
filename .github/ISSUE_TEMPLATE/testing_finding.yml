@@ -1,0 +1,79 @@
+name: Testing Finding
+description: Report an issue found during platform testing
+labels: ["testing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when working through the testing plan and something doesn't work as expected.
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Testing Phase
+      description: Which phase of the testing plan?
+      options:
+        - "Phase 1: Operator Install"
+        - "Phase 2: Helios Deploy"
+        - "Phase 3: Metrics Pipeline"
+        - "Phase 4: Flow Pipeline"
+        - "Phase 5: NetBox Integration"
+        - "Phase 6: Runbook Automation"
+        - "Phase 7: Alerting"
+        - "Phase 8: Smoke Test"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Blocker (can't proceed to next phase)
+        - Major (component doesn't work, but can continue)
+        - Minor (works with workaround)
+        - Cosmetic (dashboard layout, log formatting, etc.)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What Happened
+      description: Describe the failure. Include the specific step from the testing plan.
+      placeholder: |
+        Phase 4, step 4.3: Kafka topic `helios-flows-raw` has no messages after sending test flows.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Result
+      description: What should have happened per the testing plan?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / kubectl Output
+      description: Paste relevant output. This will be formatted as code automatically.
+      render: shell
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Did you find a way to get past this?
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        - Cluster: minikube (8 CPU, 32GB) / 5x Pi 5
+        - Kubernetes: v1.29.0
+        - Values profile: values-medium.yaml
+    validations:
+      required: true
