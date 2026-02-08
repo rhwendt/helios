@@ -1,0 +1,11 @@
+# Tool artifacts
+.claude/
+.specify/
+CLAUDE.md
+
+# Build outputs
+bin/
+coverage-*.out
+
+# OS files
+.DS_Store
