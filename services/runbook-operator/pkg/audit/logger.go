@@ -11,18 +11,18 @@ import (
 type EventType string
 
 const (
-	EventExecutionCreated  EventType = "ExecutionCreated"
-	EventExecutionStarted  EventType = "ExecutionStarted"
-	EventStepStarted       EventType = "StepStarted"
-	EventStepCompleted     EventType = "StepCompleted"
-	EventStepFailed        EventType = "StepFailed"
-	EventApprovalRequested EventType = "ApprovalRequested"
-	EventApprovalGranted   EventType = "ApprovalGranted"
-	EventApprovalDenied    EventType = "ApprovalDenied"
-	EventRollbackStarted   EventType = "RollbackStarted"
-	EventRollbackCompleted EventType = "RollbackCompleted"
+	EventExecutionCreated   EventType = "ExecutionCreated"
+	EventExecutionStarted   EventType = "ExecutionStarted"
+	EventStepStarted        EventType = "StepStarted"
+	EventStepCompleted      EventType = "StepCompleted"
+	EventStepFailed         EventType = "StepFailed"
+	EventApprovalRequested  EventType = "ApprovalRequested"
+	EventApprovalGranted    EventType = "ApprovalGranted"
+	EventApprovalDenied     EventType = "ApprovalDenied"
+	EventRollbackStarted    EventType = "RollbackStarted"
+	EventRollbackCompleted  EventType = "RollbackCompleted"
 	EventExecutionCompleted EventType = "ExecutionCompleted"
-	EventExecutionFailed   EventType = "ExecutionFailed"
+	EventExecutionFailed    EventType = "ExecutionFailed"
 )
 
 // AuditEvent represents a single audit log entry.

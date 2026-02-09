@@ -31,7 +31,7 @@ jobs:
           version: v3.14.0
 
       - name: Install helm-unittest plugin
-        run: helm plugin install https://github.com/helm-unittest/helm-unittest
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --version v0.5.2
 
       - name: Create kind cluster
         uses: helm/kind-action@v1
@@ -69,6 +69,18 @@ jobs:
           kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
           kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml
           kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.73.0/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
+
+      - name: Add Helm repos
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add minio https://charts.min.io/
+          helm repo add strimzi https://strimzi.io/charts/
+          helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator/
+          helm repo update
+
+      - name: Build Helm dependencies
+        run: helm dependency build helm/helios
 
       - name: Helm lint umbrella chart
         run: helm lint helm/helios

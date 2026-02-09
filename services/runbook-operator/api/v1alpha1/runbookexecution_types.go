@@ -59,26 +59,26 @@ type RunbookRef struct {
 
 // RunbookExecutionStatus defines the observed state of RunbookExecution.
 type RunbookExecutionStatus struct {
-	Phase          ExecutionPhase       `json:"phase,omitempty"`
-	StartTime      *metav1.Time         `json:"startTime,omitempty"`
-	CompletionTime *metav1.Time         `json:"completionTime,omitempty"`
-	Duration       string               `json:"duration,omitempty"`
-	ApprovedBy     string               `json:"approvedBy,omitempty"`
-	ApprovedAt     *metav1.Time         `json:"approvedAt,omitempty"`
-	Message        string               `json:"message,omitempty"`
+	Phase          ExecutionPhase        `json:"phase,omitempty"`
+	StartTime      *metav1.Time          `json:"startTime,omitempty"`
+	CompletionTime *metav1.Time          `json:"completionTime,omitempty"`
+	Duration       string                `json:"duration,omitempty"`
+	ApprovedBy     string                `json:"approvedBy,omitempty"`
+	ApprovedAt     *metav1.Time          `json:"approvedAt,omitempty"`
+	Message        string                `json:"message,omitempty"`
 	Steps          []ExecutionStepStatus `json:"steps,omitempty"`
-	JobName        string               `json:"jobName,omitempty"`
-	Conditions     []metav1.Condition   `json:"conditions,omitempty"`
+	JobName        string                `json:"jobName,omitempty"`
+	Conditions     []metav1.Condition    `json:"conditions,omitempty"`
 }
 
 // ExecutionStepStatus defines the status of a single execution step.
 type ExecutionStepStatus struct {
-	Name           string     `json:"name"`
-	Status         StepStatus `json:"status"`
+	Name           string       `json:"name"`
+	Status         StepStatus   `json:"status"`
 	StartTime      *metav1.Time `json:"startTime,omitempty"`
 	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
-	Output         string     `json:"output,omitempty"`
-	Error          string     `json:"error,omitempty"`
+	Output         string       `json:"output,omitempty"`
+	Error          string       `json:"error,omitempty"`
 }
 
 // +kubebuilder:object:root=true

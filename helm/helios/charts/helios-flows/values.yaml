@@ -31,6 +31,9 @@ flowEnricher:
       topic: helios-flows-raw
     producer:
       topic: helios-flows-enriched
+  netbox:
+    url: ""
+    apiToken: ""
 
 clickhouseClient:
   image:

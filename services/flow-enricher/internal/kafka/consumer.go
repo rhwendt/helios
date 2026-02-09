@@ -75,7 +75,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			c.logger.Info("shutting down Kafka consumer")
-			c.consumer.Close()
+			_ = c.consumer.Close()
 			return ctx.Err()
 		case <-ticker.C:
 			batch, err := c.pollBatch(ctx)

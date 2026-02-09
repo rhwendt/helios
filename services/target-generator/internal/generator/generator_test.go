@@ -64,11 +64,11 @@ func sampleDevices() []netbox.Device {
 
 func TestGenerateGNMICTargets(t *testing.T) {
 	tests := []struct {
-		name          string
-		devices       []netbox.Device
-		wantCount     int
-		wantContains  []string
-		wantExcludes  []string
+		name         string
+		devices      []netbox.Device
+		wantCount    int
+		wantContains []string
+		wantExcludes []string
 	}{
 		{
 			name:         "only gNMI-enabled devices with IPs",
@@ -196,9 +196,9 @@ func TestGenerateSNMPTargets_LabelTaxonomy(t *testing.T) {
 
 func TestGenerateBlackboxTargets(t *testing.T) {
 	tests := []struct {
-		name      string
-		devices   []netbox.Device
-		wantCount int
+		name       string
+		devices    []netbox.Device
+		wantCount  int
 		wantProbes []string
 	}{
 		{
