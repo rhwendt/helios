@@ -13,19 +13,19 @@ import (
 
 // Device represents a NetBox device with Helios-specific custom fields.
 type Device struct {
-	ID               int               `json:"id"`
-	Name             string            `json:"name"`
-	PrimaryIP        string            `json:"primary_ip_address"`
-	Site             string            `json:"site"`
-	Region           string            `json:"region"`
-	Role             string            `json:"role"`
-	Platform         string            `json:"platform"`
-	Manufacturer     string            `json:"manufacturer"`
-	Status           string            `json:"status"`
+	ID               int                `json:"id"`
+	Name             string             `json:"name"`
+	PrimaryIP        string             `json:"primary_ip_address"`
+	Site             string             `json:"site"`
+	Region           string             `json:"region"`
+	Role             string             `json:"role"`
+	Platform         string             `json:"platform"`
+	Manufacturer     string             `json:"manufacturer"`
+	Status           string             `json:"status"`
 	CustomFields     DeviceCustomFields `json:"custom_fields"`
-	Tags             []string          `json:"tags"`
-	TelemetryProfile string            `json:"telemetry_profile"`
-	MonitoringTier   string            `json:"monitoring_tier"`
+	Tags             []string           `json:"tags"`
+	TelemetryProfile string             `json:"telemetry_profile"`
+	MonitoringTier   string             `json:"monitoring_tier"`
 }
 
 // DeviceCustomFields holds Helios-specific custom fields from NetBox.
@@ -59,9 +59,9 @@ func NewClient(baseURL, apiToken string, logger *slog.Logger) *Client {
 
 // paginatedResponse represents NetBox paginated API response.
 type paginatedResponse struct {
-	Count    int              `json:"count"`
-	Next     *string          `json:"next"`
-	Previous *string          `json:"previous"`
+	Count    int               `json:"count"`
+	Next     *string           `json:"next"`
+	Previous *string           `json:"previous"`
 	Results  []json.RawMessage `json:"results"`
 }
 
@@ -93,7 +93,7 @@ func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]Device, *strin
 		return nil, nil, fmt.Errorf("parsing URL: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), http.NoBody)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -104,10 +104,10 @@ func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]Device, *strin
 	if err != nil {
 		return nil, nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return nil, nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
 

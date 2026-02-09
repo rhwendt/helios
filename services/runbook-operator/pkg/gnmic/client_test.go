@@ -79,9 +79,9 @@ func (m *mockSubscribeStream) Recv() (*gnmipb.SubscribeResponse, error) {
 	return resp, nil
 }
 
-func (m *mockSubscribeStream) Header() (metadata.MD, error) { return nil, nil }
-func (m *mockSubscribeStream) Trailer() metadata.MD         { return nil }
-func (m *mockSubscribeStream) CloseSend() error             { return nil }
+func (m *mockSubscribeStream) Header() (metadata.MD, error)  { return nil, nil }
+func (m *mockSubscribeStream) Trailer() metadata.MD          { return nil }
+func (m *mockSubscribeStream) CloseSend() error              { return nil }
 func (m *mockSubscribeStream) Context() context.Context      { return context.Background() }
 func (m *mockSubscribeStream) SendMsg(msg interface{}) error { return nil }
 func (m *mockSubscribeStream) RecvMsg(msg interface{}) error { return nil }

@@ -14,7 +14,7 @@ groups:
   - name: helios-interface-health
     rules:
       - alert: HeliosInterfaceErrors
-        expr: rate(interface_errors_total[5m]) / rate(interface_packets_total[5m]) > 0.01
+        expr: (rate(interface_errors_total[5m]) / rate(interface_packets_total[5m]) > 0.01) and rate(interface_packets_total[5m]) > 0
         for: 5m
         labels:
           severity: warning

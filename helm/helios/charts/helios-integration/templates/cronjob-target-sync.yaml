@@ -31,7 +31,8 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: target-generator
-              image: ghcr.io/rhwendt/helios/target-generator:latest
+              image: "{{ .Values.targetGenerator.image.repository | default "ghcr.io/rhwendt/helios/target-generator" }}:{{ .Values.targetGenerator.image.tag | default "latest" }}"
+              imagePullPolicy: {{ .Values.targetGenerator.image.pullPolicy | default "IfNotPresent" }}
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true

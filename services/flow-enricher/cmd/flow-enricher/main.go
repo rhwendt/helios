@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,6 +19,13 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("fatal error", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
@@ -39,13 +47,16 @@ func main() {
 	geoipASNDB := envOrDefault("GEOIP_ASN_DB", "/var/lib/geoip/GeoLite2-ASN.mmdb")
 	metricsAddr := envOrDefault("METRICS_ADDR", ":8080")
 
+	// Validate NetBox configuration
+	if netboxURL != "" && netboxToken == "" {
+		return fmt.Errorf("NETBOX_API_TOKEN must be set when NETBOX_API_URL is configured")
+	}
+
 	// Initialize NetBox cache
 	netboxCache := enricher.NewNetBoxCache(netboxURL, netboxToken, 5*time.Minute, logger)
 
 	// Initialize GeoIP reader
-	var geoipReader *enricher.GeoIPReader
-	var err error
-	geoipReader, err = enricher.NewGeoIPReader(geoipCityDB, geoipASNDB, logger)
+	geoipReader, err := enricher.NewGeoIPReader(geoipCityDB, geoipASNDB, logger)
 	if err != nil {
 		logger.Warn("GeoIP databases not available, continuing without GeoIP enrichment", "error", err)
 		geoipReader = nil
@@ -60,8 +71,7 @@ func main() {
 		Topic:   producerTopic,
 	}, logger)
 	if err != nil {
-		logger.Error("failed to create Kafka producer", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("creating Kafka producer: %w", err)
 	}
 	defer producer.Close()
 
@@ -81,8 +91,7 @@ func main() {
 		BatchSize: 100,
 	}, handler, logger)
 	if err != nil {
-		logger.Error("failed to create Kafka consumer", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("creating Kafka consumer: %w", err)
 	}
 
 	// Start metrics server
@@ -90,7 +99,7 @@ func main() {
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 	server := &http.Server{Addr: metricsAddr, Handler: mux}
 
@@ -131,14 +140,19 @@ func main() {
 	// Graceful shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
-	server.Shutdown(shutdownCtx)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logger.Error("metrics server shutdown error", "error", err)
+	}
 
 	if geoipReader != nil {
-		geoipReader.Close()
+		if err := geoipReader.Close(); err != nil {
+			logger.Error("GeoIP reader close error", "error", err)
+		}
 	}
 
 	wg.Wait()
 	logger.Info("shutdown complete")
+	return nil
 }
 
 func envOrDefault(key, defaultValue string) string {

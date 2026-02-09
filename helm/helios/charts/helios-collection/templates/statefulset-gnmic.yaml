@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}-gnmic
+  namespace: helios-collection
   labels:
     app.kubernetes.io/name: gnmic
     app.kubernetes.io/instance: {{ .Release.Name }}

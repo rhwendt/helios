@@ -31,8 +31,6 @@ func mustMarshal(v any) json.RawMessage {
 	return b
 }
 
-func intPtr(i int) *int { return &i }
-
 func TestFetchDevices_SinglePage(t *testing.T) {
 	mux := http.NewServeMux()
 
@@ -64,7 +62,7 @@ func TestFetchDevices_SinglePage(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{deviceJSON}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{deviceJSON}, nil))
 	})
 
 	ifaceJSON := mustMarshal(map[string]any{
@@ -86,7 +84,7 @@ func TestFetchDevices_SinglePage(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{ifaceJSON, ifaceJSON2}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{ifaceJSON, ifaceJSON2}, nil))
 	})
 
 	srv := httptest.NewServer(mux)
@@ -177,15 +175,15 @@ func TestFetchDevices_Pagination(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		if callCount == 1 {
 			page2URL := fmt.Sprintf("%s/api/dcim/devices/?cf_helios_monitor=true&status=active&limit=100&offset=100", srv.URL)
-			w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device1}, &page2URL))
+			_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device1}, &page2URL))
 		} else {
-			w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device2}, nil))
+			_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device2}, nil))
 		}
 	})
 
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	})
 
 	srv = httptest.NewServer(mux)
@@ -231,11 +229,11 @@ func TestFetchDevices_SkipsDeviceWithoutPrimaryIP(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/devices/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{deviceNoPrimaryIP, deviceWithIP}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{deviceNoPrimaryIP, deviceWithIP}, nil))
 	})
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	})
 
 	srv := httptest.NewServer(mux)
@@ -274,7 +272,7 @@ func TestFetchDevices_APIError(t *testing.T) {
 func TestFetchDevices_MalformedJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{invalid json`))
+		_, _ = w.Write([]byte(`{invalid json`))
 	}))
 	defer srv.Close()
 
@@ -303,11 +301,11 @@ func TestFetchDevices_MalformedDeviceJSON(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/devices/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{badDevice, goodDevice}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{badDevice, goodDevice}, nil))
 	})
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	})
 
 	srv := httptest.NewServer(mux)
@@ -340,11 +338,11 @@ func TestFetchDevices_NilNestedFields(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/devices/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
 	})
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	})
 
 	srv := httptest.NewServer(mux)
@@ -387,7 +385,7 @@ func TestFetchDevices_InterfaceSNMPIndexFromLabel(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/devices/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
 	})
 
 	ifaceLabelOnly := mustMarshal(map[string]any{
@@ -414,7 +412,7 @@ func TestFetchDevices_InterfaceSNMPIndexFromLabel(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{ifaceLabelOnly, ifaceNoIndex, ifaceNonNumericLabel}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{ifaceLabelOnly, ifaceNoIndex, ifaceNonNumericLabel}, nil))
 	})
 
 	srv := httptest.NewServer(mux)
@@ -454,7 +452,7 @@ func TestFetchDevices_InterfaceAPIError(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/devices/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
 	})
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -489,7 +487,7 @@ func TestFetchDevices_ContextCancellation(t *testing.T) {
 		case <-r.Context().Done():
 			return
 		case <-time.After(5 * time.Second):
-			w.Write([]byte(`{}`))
+			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
 	defer srv.Close()
@@ -509,7 +507,7 @@ func TestFetchDevices_AuthorizationHeader(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	}))
 	defer srv.Close()
 
@@ -561,7 +559,7 @@ func TestFetchDevices_InterfacePagination(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/devices/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
 	})
 
 	ifaceCallCount := 0
@@ -579,7 +577,7 @@ func TestFetchDevices_InterfacePagination(t *testing.T) {
 				},
 			})
 			page2URL := fmt.Sprintf("%s/api/dcim/interfaces/?device_id=1&limit=100&offset=100", srv.URL)
-			w.Write(mockNetBoxDevicesResponse([]json.RawMessage{iface1}, &page2URL))
+			_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{iface1}, &page2URL))
 		} else {
 			iface2 := mustMarshal(map[string]any{
 				"id":    302,
@@ -589,7 +587,7 @@ func TestFetchDevices_InterfacePagination(t *testing.T) {
 					"snmp_index": 2,
 				},
 			})
-			w.Write(mockNetBoxDevicesResponse([]json.RawMessage{iface2}, nil))
+			_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{iface2}, nil))
 		}
 	})
 
@@ -627,7 +625,7 @@ func TestFetchDevices_RequestURLFormat(t *testing.T) {
 			receivedQuery = r.URL.RawQuery
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	}))
 	defer srv.Close()
 
@@ -657,7 +655,7 @@ func TestFetchDevices_TrailingSlashInAPIURL(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	}))
 	defer srv.Close()
 
@@ -686,11 +684,11 @@ func TestFetchDevices_IPWithoutCIDR(t *testing.T) {
 
 	mux.HandleFunc("/api/dcim/devices/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse([]json.RawMessage{device}, nil))
 	})
 	mux.HandleFunc("/api/dcim/interfaces/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(mockNetBoxDevicesResponse(nil, nil))
+		_, _ = w.Write(mockNetBoxDevicesResponse(nil, nil))
 	})
 
 	srv := httptest.NewServer(mux)

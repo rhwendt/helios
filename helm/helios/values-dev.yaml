@@ -1,0 +1,55 @@
+## Helios - Local Development Values (minikube/kind)
+##
+## Usage:
+##   make minikube-load VERSION=dev
+##   helm install helios helm/helios -f helm/helios/values-dev.yaml
+
+global:
+  datacenter: "dev"
+  storageTopology: "single-dc-minio"
+  clusterName: "helios-dev"
+
+## Override sub-chart image settings for local builds
+## imagePullPolicy: Never tells k8s to use locally loaded images
+helios-flows:
+  flowEnricher:
+    replicas: 1
+    image:
+      repository: ghcr.io/rhwendt/helios/flow-enricher
+      tag: dev
+      pullPolicy: Never
+
+helios-automation:
+  operator:
+    image:
+      repository: ghcr.io/rhwendt/helios/runbook-operator
+      tag: dev
+      pullPolicy: Never
+    replicas: 1
+  executor:
+    image:
+      repository: ghcr.io/rhwendt/helios/runbook-executor
+      tag: dev
+      pullPolicy: Never
+
+helios-integration:
+  targetGenerator:
+    image:
+      repository: ghcr.io/rhwendt/helios/target-generator
+      tag: dev
+      pullPolicy: Never
+
+## Disable heavy dependencies not needed for local testing
+kube-prometheus-stack:
+  enabled: false
+thanos:
+  enabled: false
+minio:
+  enabled: false
+strimzi-kafka-operator:
+  enabled: false
+clickhouse-operator:
+  enabled: false
+
+networkPolicy:
+  enabled: false

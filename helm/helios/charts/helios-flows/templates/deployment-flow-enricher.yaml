@@ -18,6 +18,7 @@ spec:
         {{- include "helios.labels" . | nindent 8 }}
         app.kubernetes.io/component: flow-enricher
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -37,6 +38,7 @@ spec:
               value: {{ .Values.flowEnricher.kafka.consumer.topic | default "helios-flows-raw" }}
             - name: KAFKA_PRODUCER_TOPIC
               value: {{ .Values.flowEnricher.kafka.producer.topic | default "helios-flows-enriched" }}
+            {{- if .Values.flowEnricher.netbox }}
             - name: NETBOX_API_URL
               value: {{ .Values.flowEnricher.netbox.url | default "" | quote }}
             - name: NETBOX_API_TOKEN
@@ -45,6 +47,7 @@ spec:
                   name: {{ include "helios.fullname" . }}-netbox-credentials
                   key: api-token
                   optional: true
+            {{- end }}
           ports:
             - name: metrics
               containerPort: 9090

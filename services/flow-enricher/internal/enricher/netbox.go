@@ -280,7 +280,7 @@ func (c *NetBoxCache) fetchPage(ctx context.Context, client *http.Client, rawURL
 		return nil, nil, fmt.Errorf("parsing URL: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), http.NoBody)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -291,10 +291,10 @@ func (c *NetBoxCache) fetchPage(ctx context.Context, client *http.Client, rawURL
 	if err != nil {
 		return nil, nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return nil, nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
 

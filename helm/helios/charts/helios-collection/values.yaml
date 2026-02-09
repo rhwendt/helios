@@ -2,7 +2,7 @@ gnmic:
   replicas: 2
   image:
     repository: ghcr.io/openconfig/gnmic
-    tag: latest
+    tag: 0.38.2
     pullPolicy: IfNotPresent
   clusteringEnabled: true
   apiPort: 7890
@@ -15,6 +15,7 @@ gnmic:
       cpu: "1"
       memory: 1Gi
   credentials:
+    # Set to false only for development. In production, use External Secrets Operator.
     external: true
     storeRef: cluster-secret-store
     remoteKey: helios/gnmic
@@ -24,7 +25,7 @@ snmpExporter:
   enabled: true
   image:
     repository: prom/snmp-exporter
-    tag: latest
+    tag: v0.26.0
     pullPolicy: IfNotPresent
   port: 9116
 
@@ -32,7 +33,7 @@ blackboxExporter:
   enabled: true
   image:
     repository: prom/blackbox-exporter
-    tag: latest
+    tag: v0.25.0
     pullPolicy: IfNotPresent
   port: 9115
 
