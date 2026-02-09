@@ -51,6 +51,7 @@ func NewProducer(cfg ProducerConfig, logger *slog.Logger) (*Producer, error) {
 func (p *Producer) ProduceBatch(ctx context.Context, flows []*flowpb.EnrichedFlow) error {
 	deliveryChan := make(chan kafka.Event, len(flows))
 
+	produced := 0
 	for _, flow := range flows {
 		data, err := proto.Marshal(flow)
 		if err != nil {
@@ -67,12 +68,14 @@ func (p *Producer) ProduceBatch(ctx context.Context, flows []*flowpb.EnrichedFlo
 		}, deliveryChan)
 		if err != nil {
 			p.logger.Error("failed to produce message", "error", err)
+		} else {
+			produced++
 		}
 	}
 
-	// Wait for delivery confirmations
+	// Wait for delivery confirmations only for messages actually produced
 	var errs int
-	for i := 0; i < len(flows); i++ {
+	for i := 0; i < produced; i++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -86,7 +89,7 @@ func (p *Producer) ProduceBatch(ctx context.Context, flows []*flowpb.EnrichedFlo
 	}
 
 	if errs > 0 {
-		return fmt.Errorf("failed to deliver %d/%d messages", errs, len(flows))
+		return fmt.Errorf("failed to deliver %d/%d messages", errs, produced)
 	}
 	return nil
 }

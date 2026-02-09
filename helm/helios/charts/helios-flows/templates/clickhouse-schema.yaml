@@ -26,7 +26,8 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: schema-apply
-          image: clickhouse/clickhouse-client:latest
+          image: "{{ .Values.clickhouseClient.image.repository }}:{{ .Values.clickhouseClient.image.tag }}"
+          imagePullPolicy: {{ .Values.clickhouseClient.image.pullPolicy | default "IfNotPresent" }}
           command:
             - /bin/sh
             - -c

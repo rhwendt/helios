@@ -9,7 +9,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -60,12 +59,11 @@ func NewClient(address, username, password string, log *slog.Logger, opts ...Cli
 
 // Connect establishes a gRPC connection to the device.
 func (c *Client) Connect(ctx context.Context) error {
-	var transportCreds credentials.TransportCredentials
-	if c.tlsConfig != nil {
-		transportCreds = credentials.NewTLS(c.tlsConfig)
-	} else {
-		transportCreds = insecure.NewCredentials()
+	if c.tlsConfig == nil {
+		// TODO: Source TLS credentials from K8s Secrets via ESO
+		return fmt.Errorf("TLS configuration is required for gNMI connections to %s", c.address)
 	}
+	transportCreds := credentials.NewTLS(c.tlsConfig)
 
 	dialCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()

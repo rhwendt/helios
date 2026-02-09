@@ -32,7 +32,7 @@ data:
       - name: ClickHouse
         type: grafana-clickhouse-datasource
         access: proxy
-        url: http://clickhouse.helios-storage.svc.cluster.local:8123
+        url: http://clickhouse.helios-flows.svc.cluster.local:8123
         editable: false
         jsonData:
           defaultDatabase: helios_flows

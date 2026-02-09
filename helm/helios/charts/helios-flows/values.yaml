@@ -1,5 +1,9 @@
 goflow2:
   replicas: 2
+  image:
+    repository: netsampler/goflow2
+    tag: v3.4.5
+    pullPolicy: IfNotPresent
   udpPorts:
     - 2055
     - 6343
@@ -19,7 +23,7 @@ flowEnricher:
   replicas: 2
   image:
     repository: ghcr.io/rhwendt/helios/flow-enricher
-    tag: latest
+    tag: v0.1.0
     pullPolicy: IfNotPresent
   kafka:
     consumer:
@@ -28,7 +32,15 @@ flowEnricher:
     producer:
       topic: helios-flows-enriched
 
+clickhouseClient:
+  image:
+    repository: clickhouse/clickhouse-client
+    tag: "24.1"
+    pullPolicy: IfNotPresent
+
 clickhouse:
   shards: 2
   replicas: 2
   storage: 100Gi
+  # Set a password hash for the default user. In production, use ESO to manage this secret.
+  defaultPasswordSha256: ""

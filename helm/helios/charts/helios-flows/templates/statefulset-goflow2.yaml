@@ -19,6 +19,7 @@ spec:
         {{- include "helios.labels" . | nindent 8 }}
         app.kubernetes.io/component: goflow2
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -27,7 +28,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: goflow2
-          image: netsampler/goflow2:latest
+          image: "{{ .Values.goflow2.image.repository }}:{{ .Values.goflow2.image.tag }}"
+          imagePullPolicy: {{ .Values.goflow2.image.pullPolicy | default "IfNotPresent" }}
           args:
             - -transport=kafka
             - -transport.kafka.brokers={{ include "helios.fullname" . }}-kafka-bootstrap.helios-flows.svc.cluster.local:9092

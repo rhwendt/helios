@@ -294,7 +294,7 @@ func (c *NetBoxCache) fetchPage(ctx context.Context, client *http.Client, rawURL
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return nil, nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
 

@@ -39,6 +39,12 @@ func main() {
 	geoipASNDB := envOrDefault("GEOIP_ASN_DB", "/var/lib/geoip/GeoLite2-ASN.mmdb")
 	metricsAddr := envOrDefault("METRICS_ADDR", ":8080")
 
+	// Validate NetBox configuration
+	if netboxURL != "" && netboxToken == "" {
+		logger.Error("NETBOX_API_TOKEN must be set when NETBOX_API_URL is configured")
+		os.Exit(1)
+	}
+
 	// Initialize NetBox cache
 	netboxCache := enricher.NewNetBoxCache(netboxURL, netboxToken, 5*time.Minute, logger)
 

@@ -181,7 +181,10 @@ func executeGNMISet(ctx context.Context, log *slog.Logger, step heliosv1alpha1.R
 	}
 
 	if dryRun {
-		configJSON, _ := json.Marshal(config)
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal config for dry run: %w", err)
+		}
 		return fmt.Sprintf("[DRY RUN] Would execute gNMI Set on %s: %s", target, string(configJSON)), nil
 	}
 
