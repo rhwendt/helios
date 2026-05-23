@@ -1,0 +1,125 @@
+# Backup Device Configuration
+# Exports running config via gNMI and stores in S3/MinIO
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: backup-config
+  namespace: helios-automation
+  labels:
+    helios.io/category: system
+    helios.io/use-case: backup
+spec:
+  name: Backup Device Configuration
+  description: |
+    Exports the running configuration from a device and stores it
+    in object storage (S3/MinIO) with timestamp.
+
+    The backup includes:
+    - Full OpenConfig configuration tree
+    - Device metadata (hostname, version, serial)
+    - Timestamp and triggered-by info
+
+    STORAGE:
+    - Path: s3://helios-backups/configs/{device}/{timestamp}.json
+    - Retention: Configurable via bucket lifecycle policy
+
+    USE CASES:
+    - Pre-change backup
+    - Scheduled daily backups
+    - Disaster recovery preparation
+    - Configuration audit
+
+  category: system
+  riskLevel: low
+  requiresApproval: false
+  allowedRoles:
+    - network-engineer
+    - network-admin
+  cooldown: "5m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname
+
+    - name: backup_label
+      type: string
+      required: false
+      default: "manual"
+      description: Label for this backup (e.g., pre-maintenance, daily)
+
+    - name: include_state
+      type: boolean
+      required: false
+      default: false
+      description: Include operational state (larger file, more detail)
+
+  steps:
+    - name: Get Device Metadata
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/system/state"
+
+    - name: Get Full Configuration
+      action: gnmi_get
+      timeout: 120s
+      config:
+        target: "{{device}}:6030"
+        path: "/"
+        dataType: "CONFIG"  # Only configuration, not state
+
+    - name: Get Operational State (Optional)
+      action: gnmi_get
+      timeout: 120s
+      condition: "{{include_state}} == true"
+      continueOnError: true
+      config:
+        target: "{{device}}:6030"
+        path: "/"
+        dataType: "STATE"
+
+    - name: Upload to Object Storage
+      action: script
+      timeout: 60s
+      config:
+        image: helios/backup-uploader:v1.0.0
+        script: upload_backup.py
+        args:
+          - --device={{device}}
+          - --label={{backup_label}}
+          - --triggered-by={{.triggeredBy}}
+        env:
+          - name: S3_ENDPOINT
+            valueFrom:
+              configMapKeyRef:
+                name: helios-config
+                key: s3_endpoint
+          - name: S3_BUCKET
+            value: helios-backups
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: s3-credentials
+                key: access_key
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: s3-credentials
+                key: secret_key
+
+    - name: Notify Backup Complete
+      action: notify
+      config:
+        channel: slack
+        message: |
+          :floppy_disk: *Configuration Backup Complete*
+
+          *Device:* `{{device}}`
+          *Label:* `{{backup_label}}`
+          *Include State:* `{{include_state}}`
+          *Triggered by:* {{.triggeredBy}}
+
+          Backup stored at: `s3://helios-backups/configs/{{device}}/`

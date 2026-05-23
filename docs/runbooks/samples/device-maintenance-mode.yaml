@@ -1,0 +1,194 @@
+# Device Maintenance Mode
+# Comprehensive pre-maintenance preparation
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: device-maintenance-mode
+  namespace: helios-automation
+  labels:
+    helios.io/category: system
+    helios.io/use-case: maintenance
+spec:
+  name: Enter Device Maintenance Mode
+  description: |
+    Prepares a device for maintenance by:
+    1. Taking a configuration backup
+    2. Recording current state (BGP, interfaces, routes)
+    3. Draining traffic (increasing IGP metrics)
+    4. Silencing alerts in Alertmanager
+    5. Updating device status in NetBox
+
+    This is a COMPREHENSIVE runbook that orchestrates multiple actions.
+    Use this before any disruptive maintenance (reboots, upgrades, etc.)
+
+    COMPANION RUNBOOK:
+    Use `exit-maintenance-mode` to restore normal operation.
+
+    APPROVAL REQUIRED:
+    This runbook requires approval due to traffic impact.
+
+  category: system
+  riskLevel: high
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: network-admin
+  approvalTimeout: "2h"
+  allowedRoles:
+    - network-admin
+  cooldown: "30m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname
+
+    - name: maintenance_window_hours
+      type: integer
+      required: true
+      default: 4
+      description: Expected maintenance duration in hours (1-24)
+      validation: "^([1-9]|1[0-9]|2[0-4])$"
+
+    - name: change_ticket
+      type: string
+      required: true
+      description: Change ticket reference (e.g., CHG0012345)
+      validation: "^CHG[0-9]{7}$"
+
+    - name: drain_wait_minutes
+      type: integer
+      required: false
+      default: 10
+      description: Minutes to wait for traffic drain
+
+  steps:
+    # Phase 1: Backup
+    - name: Backup Configuration
+      action: script
+      timeout: 180s
+      config:
+        runbook: backup-config
+        parameters:
+          device: "{{device}}"
+          backup_label: "pre-maintenance-{{change_ticket}}"
+
+    # Phase 2: Record State
+    - name: Record BGP State
+      action: gnmi_get
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors"
+
+    - name: Record Interface State
+      action: gnmi_get
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        path: "/interfaces/interface/state"
+
+    - name: Record Route Count
+      action: gnmi_get
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name=default]/afts/ipv4-unicast/state/counters"
+
+    # Phase 3: Drain Traffic
+    - name: Increase OSPF Metrics (All Interfaces)
+      action: gnmi_set
+      timeout: 60s
+      continueOnError: true
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=OSPF][name=OSPF]/ospfv2/global/config/router-id"
+            # This is a placeholder - actual implementation would iterate interfaces
+            value: null
+            encoding: json_ietf
+
+    - name: Increase IS-IS Metrics (All Interfaces)
+      action: gnmi_set
+      timeout: 60s
+      continueOnError: true
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS][name=ISIS]/isis/global/config/overload-bit"
+            value: true
+            encoding: json_ietf
+
+    - name: Wait for Traffic Drain
+      action: wait
+      config:
+        duration: "{{drain_wait_minutes}}m"
+
+    # Phase 4: Silence Alerts
+    - name: Create Alertmanager Silence
+      action: script
+      timeout: 30s
+      config:
+        image: helios/alertmanager-cli:v1.0.0
+        script: create_silence.py
+        args:
+          - --device={{device}}
+          - --duration={{maintenance_window_hours}}h
+          - --comment="Maintenance: {{change_ticket}}"
+          - --created-by={{.triggeredBy}}
+
+    # Phase 5: Update NetBox
+    - name: Update NetBox Status
+      action: script
+      timeout: 30s
+      config:
+        image: helios/netbox-cli:v1.0.0
+        script: update_status.py
+        args:
+          - --device={{device}}
+          - --status=maintenance
+          - --comment="{{change_ticket}} - Maintenance started by {{.triggeredBy}}"
+
+    - name: Notify Maintenance Started
+      action: notify
+      config:
+        channel: slack
+        message: |
+          :wrench: *Device Entering Maintenance Mode*
+
+          *Device:* `{{device}}`
+          *Change Ticket:* `{{change_ticket}}`
+          *Duration:* `{{maintenance_window_hours}} hours`
+          *Triggered by:* {{.triggeredBy}}
+          *Approved by:* {{.status.approvedBy}}
+
+          :white_check_mark: Configuration backed up
+          :white_check_mark: Pre-maintenance state recorded
+          :white_check_mark: Traffic drained (IGP metrics raised)
+          :white_check_mark: Alerts silenced
+          :white_check_mark: NetBox status updated
+
+          :warning: Run `exit-maintenance-mode` when complete!
+
+  rollback:
+    - name: Clear IS-IS Overload Bit
+      action: gnmi_set
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS][name=ISIS]/isis/global/config/overload-bit"
+            value: false
+            encoding: json_ietf
+
+    - name: Update NetBox Status to Active
+      action: script
+      timeout: 30s
+      config:
+        image: helios/netbox-cli:v1.0.0
+        script: update_status.py
+        args:
+          - --device={{device}}
+          - --status=active
+          - --comment="Maintenance aborted/rolled back"

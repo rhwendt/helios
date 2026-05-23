@@ -1,0 +1,146 @@
+# Clear BGP Neighbor Session
+# Requires approval due to traffic impact
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: clear-bgp-neighbor
+  namespace: helios-automation
+  labels:
+    helios.io/category: bgp
+    helios.io/vendor: multi-vendor
+spec:
+  name: Clear BGP Neighbor Session
+  description: |
+    Clears a specific BGP neighbor session, causing it to reset and re-establish.
+
+    USE CASES:
+    - Clear stuck session that won't establish
+    - Force re-advertisement of routes after policy change
+    - Reset session after maintenance on peer
+
+    IMPACT:
+    - Traffic will be rerouted during session re-establishment
+    - Prefixes from this peer will be withdrawn temporarily
+    - Typical re-convergence: 30-90 seconds
+
+  category: bgp
+  riskLevel: high
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: network-admin
+    - type: user
+      name: oncall@example.com
+  approvalTimeout: "30m"
+  allowedRoles:
+    - network-engineer
+    - network-admin
+  cooldown: "15m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname (from NetBox)
+
+    - name: neighbor_ip
+      type: string
+      required: true
+      description: BGP neighbor IP address (IPv4 or IPv6)
+      validation: "^([0-9]{1,3}\\.){3}[0-9]{1,3}$|^([0-9a-fA-F:]+)$"
+
+    - name: vrf
+      type: string
+      required: false
+      default: "default"
+      description: VRF name (use 'default' for global routing table)
+
+    - name: reason
+      type: string
+      required: true
+      description: Reason for clearing session (required for audit log)
+      validation: ".{10,}"  # Minimum 10 characters
+
+  steps:
+    - name: Get Current BGP State
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name={{vrf}}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{neighbor_ip}}]/state"
+
+    - name: Record Pre-Clear Prefix Count
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name={{vrf}}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{neighbor_ip}}]/afi-safis/afi-safi/state/prefixes"
+
+    - name: Clear BGP Session
+      action: gnmi_set
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        updates:
+          # OpenConfig doesn't have a direct "clear" - use admin-down/up
+          - path: "/network-instances/network-instance[name={{vrf}}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{neighbor_ip}}]/config/enabled"
+            value: false
+            encoding: json_ietf
+
+    - name: Wait for Session Down
+      action: wait
+      config:
+        duration: "5s"
+
+    - name: Re-enable BGP Session
+      action: gnmi_set
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name={{vrf}}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{neighbor_ip}}]/config/enabled"
+            value: true
+            encoding: json_ietf
+
+    - name: Wait for Session Re-establishment
+      action: gnmi_get
+      timeout: 120s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name={{vrf}}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{neighbor_ip}}]/state/session-state"
+        retryUntil: "ESTABLISHED"
+        retryInterval: "10s"
+
+    - name: Verify Prefix Count Restored
+      action: gnmi_get
+      timeout: 60s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name={{vrf}}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{neighbor_ip}}]/afi-safis/afi-safi/state/prefixes/received"
+
+    - name: Notify Completion
+      action: notify
+      config:
+        channel: slack
+        message: |
+          :arrows_counterclockwise: *BGP Session Cleared*
+
+          *Device:* `{{device}}`
+          *Neighbor:* `{{neighbor_ip}}`
+          *VRF:* `{{vrf}}`
+          *Reason:* {{reason}}
+
+          *Triggered by:* {{.triggeredBy}}
+          *Approved by:* {{.status.approvedBy}}
+          *Duration:* {{.status.duration}}
+
+  rollback:
+    - name: Ensure BGP Session Enabled
+      action: gnmi_set
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name={{vrf}}]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address={{neighbor_ip}}]/config/enabled"
+            value: true
+            encoding: json_ietf

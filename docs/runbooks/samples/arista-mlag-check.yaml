@@ -1,0 +1,90 @@
+# Arista MLAG Health Check
+# Vendor-specific runbook for Arista MLAG validation
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: arista-mlag-check
+  namespace: helios-automation
+  labels:
+    helios.io/category: diagnostic
+    helios.io/vendor: arista
+spec:
+  name: Arista MLAG Health Check
+  description: |
+    Validates MLAG (Multi-Chassis Link Aggregation) health on Arista switches.
+
+    CHECKS:
+    - MLAG domain state (active/inactive)
+    - Peer-link status
+    - MLAG interfaces status
+    - Configuration consistency
+    - Reload delay timers
+
+    VENDOR-SPECIFIC:
+    This runbook uses Arista-native YANG models via OpenConfig extensions.
+
+  category: diagnostic
+  riskLevel: low
+  requiresApproval: false
+  allowedRoles:
+    - network-viewer
+    - network-engineer
+    - network-admin
+  cooldown: "1m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Arista switch hostname
+
+  steps:
+    - name: Get MLAG Domain State
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/arista/mlag/config"
+        # Arista-specific path
+
+    - name: Get MLAG Status
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/arista/mlag/status"
+
+    - name: Get Peer Link State
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/interfaces/interface[name=Port-Channel1]/state"
+        # Assuming Port-Channel1 is peer-link
+
+    - name: Get MLAG Interfaces
+      action: gnmi_get
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        path: "/arista/mlag/interfaces"
+
+    - name: Check for Config Inconsistencies
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/arista/mlag/status/config-sanity"
+
+    - name: Notify if Issues Found
+      action: notify
+      condition: "{{steps['Check for Config Inconsistencies'].output}} != 'consistent'"
+      config:
+        channel: slack
+        message: |
+          :warning: *MLAG Configuration Issue Detected*
+
+          *Device:* `{{device}}`
+          *Issue:* Configuration inconsistency between MLAG peers
+
+          Please investigate manually.

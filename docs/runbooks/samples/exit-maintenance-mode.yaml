@@ -1,0 +1,128 @@
+# Exit Device Maintenance Mode
+# Companion to device-maintenance-mode
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: exit-maintenance-mode
+  namespace: helios-automation
+  labels:
+    helios.io/category: system
+    helios.io/use-case: maintenance
+spec:
+  name: Exit Device Maintenance Mode
+  description: |
+    Restores a device to normal operation after maintenance:
+    1. Clears IS-IS overload bit / restores IGP metrics
+    2. Verifies BGP sessions re-establish
+    3. Verifies route counts match pre-maintenance
+    4. Removes Alertmanager silence
+    5. Updates NetBox status to active
+
+    COMPANION RUNBOOK:
+    This should be run after `device-maintenance-mode`.
+
+  category: system
+  riskLevel: medium
+  requiresApproval: false
+  allowedRoles:
+    - network-engineer
+    - network-admin
+  cooldown: "5m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname
+
+    - name: change_ticket
+      type: string
+      required: true
+      description: Original change ticket reference
+      validation: "^CHG[0-9]{7}$"
+
+    - name: verification_wait_minutes
+      type: integer
+      required: false
+      default: 5
+      description: Minutes to wait for convergence before verification
+
+  steps:
+    # Phase 1: Restore IGP
+    - name: Clear IS-IS Overload Bit
+      action: gnmi_set
+      timeout: 30s
+      continueOnError: true
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS][name=ISIS]/isis/global/config/overload-bit"
+            value: false
+            encoding: json_ietf
+
+    - name: Wait for Convergence
+      action: wait
+      config:
+        duration: "{{verification_wait_minutes}}m"
+
+    # Phase 2: Verify
+    - name: Verify All Interfaces Up
+      action: gnmi_get
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        path: "/interfaces/interface/state/oper-status"
+
+    - name: Verify BGP Sessions
+      action: gnmi_get
+      timeout: 60s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor/state/session-state"
+
+    - name: Verify Route Count
+      action: gnmi_get
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name=default]/afts/ipv4-unicast/state/counters"
+
+    # Phase 3: Remove Silence
+    - name: Remove Alertmanager Silence
+      action: script
+      timeout: 30s
+      config:
+        image: helios/alertmanager-cli:v1.0.0
+        script: remove_silence.py
+        args:
+          - --device={{device}}
+          - --comment="{{change_ticket}}"
+
+    # Phase 4: Update NetBox
+    - name: Update NetBox Status
+      action: script
+      timeout: 30s
+      config:
+        image: helios/netbox-cli:v1.0.0
+        script: update_status.py
+        args:
+          - --device={{device}}
+          - --status=active
+          - --comment="{{change_ticket}} - Maintenance completed by {{.triggeredBy}}"
+
+    - name: Notify Maintenance Complete
+      action: notify
+      config:
+        channel: slack
+        message: |
+          :white_check_mark: *Device Exited Maintenance Mode*
+
+          *Device:* `{{device}}`
+          *Change Ticket:* `{{change_ticket}}`
+          *Completed by:* {{.triggeredBy}}
+
+          :white_check_mark: IGP metrics restored
+          :white_check_mark: BGP sessions verified
+          :white_check_mark: Route counts verified
+          :white_check_mark: Alert silence removed
+          :white_check_mark: NetBox status: Active

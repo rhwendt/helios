@@ -1,0 +1,108 @@
+# Cisco Scheduled Reload
+# Schedule a device reload with automatic cancel option
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: cisco-reload-in
+  namespace: helios-automation
+  labels:
+    helios.io/category: system
+    helios.io/vendor: cisco
+spec:
+  name: Cisco Schedule Reload
+  description: |
+    Schedules a reload on a Cisco device with a specified delay.
+    Useful for maintenance windows where you need the device to
+    auto-recover if something goes wrong.
+
+    SAFETY FEATURES:
+    - Saves configuration before scheduling reload
+    - Notifies team when reload is scheduled
+    - Can be cancelled with companion runbook
+
+    NOTE: This requires IOS-XE gNMI support. For IOS-XR or NX-OS,
+    different paths may be needed.
+
+  category: system
+  riskLevel: critical
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: network-admin
+  approvalTimeout: "30m"
+  allowedRoles:
+    - network-admin
+  cooldown: "60m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Cisco device hostname
+
+    - name: reload_in_minutes
+      type: integer
+      required: true
+      default: 30
+      description: Minutes until reload (5-120)
+      validation: "^([5-9]|[1-9][0-9]|1[0-1][0-9]|120)$"
+
+    - name: reason
+      type: string
+      required: true
+      description: Reason for reload
+
+    - name: save_config
+      type: boolean
+      required: false
+      default: true
+      description: Save running config before reload
+
+  steps:
+    - name: Get Current Uptime
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/system/state/boot-time"
+
+    - name: Save Configuration
+      action: gnmi_set
+      timeout: 60s
+      condition: "{{save_config}} == true"
+      config:
+        target: "{{device}}:6030"
+        updates:
+          # Cisco-specific RPC for copy running startup
+          - path: "/cisco-ia:save-config"
+            value: {}
+            encoding: json_ietf
+
+    - name: Schedule Reload
+      action: gnmi_set
+      timeout: 30s
+      config:
+        target: "{{device}}:6030"
+        updates:
+          # Cisco-specific RPC
+          - path: "/cisco-ia:reload"
+            value:
+              reload-in: "{{reload_in_minutes}}"
+              reason: "{{reason}}"
+            encoding: json_ietf
+
+    - name: Notify Reload Scheduled
+      action: notify
+      config:
+        channel: slack
+        message: |
+          :rotating_light: *Device Reload Scheduled*
+
+          *Device:* `{{device}}`
+          *Reload In:* `{{reload_in_minutes}} minutes`
+          *Reason:* {{reason}}
+          *Triggered by:* {{.triggeredBy}}
+          *Approved by:* {{.status.approvedBy}}
+
+          :warning: To cancel: `kubectl apply -f cisco-cancel-reload.yaml`
+          Or run: `cisco-cancel-reload` runbook

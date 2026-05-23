@@ -1,0 +1,172 @@
+# Palo Alto Commit Configuration
+# Firewall-specific runbook for committing pending changes
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: paloalto-commit
+  namespace: helios-automation
+  labels:
+    helios.io/category: system
+    helios.io/vendor: paloalto
+spec:
+  name: Palo Alto Commit Configuration
+  description: |
+    Commits pending configuration changes on a Palo Alto firewall.
+
+    Palo Alto uses a candidate configuration model - changes are staged
+    and must be committed to take effect.
+
+    This runbook:
+    1. Validates the pending configuration
+    2. Commits the configuration
+    3. Monitors commit job progress
+    4. Verifies commit success
+
+    NOTE: Palo Alto uses XML API, not gNMI. This runbook uses the
+    script action with the Palo Alto SDK.
+
+  category: system
+  riskLevel: high
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: security-admin
+    - type: group
+      name: network-admin
+  approvalTimeout: "1h"
+  allowedRoles:
+    - security-engineer
+    - network-admin
+  cooldown: "10m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Palo Alto firewall hostname
+
+    - name: description
+      type: string
+      required: true
+      description: Commit description/comment
+
+    - name: admin
+      type: string
+      required: false
+      description: Commit changes from specific admin (leave empty for all)
+
+    - name: partial_commit
+      type: boolean
+      required: false
+      default: false
+      description: Commit only specific vsys or areas
+
+  steps:
+    - name: Check for Pending Changes
+      action: script
+      timeout: 30s
+      config:
+        image: helios/paloalto-sdk:v1.0.0
+        script: check_pending.py
+        args:
+          - --host={{device}}
+          - --admin={{admin}}
+        env:
+          - name: PANOS_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: paloalto-credentials
+                key: api_key
+
+    - name: Validate Configuration
+      action: script
+      timeout: 120s
+      config:
+        image: helios/paloalto-sdk:v1.0.0
+        script: validate_config.py
+        args:
+          - --host={{device}}
+        env:
+          - name: PANOS_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: paloalto-credentials
+                key: api_key
+
+    - name: Commit Configuration
+      action: script
+      timeout: 300s
+      config:
+        image: helios/paloalto-sdk:v1.0.0
+        script: commit.py
+        args:
+          - --host={{device}}
+          - --description="{{description}}"
+          - --admin={{admin}}
+        env:
+          - name: PANOS_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: paloalto-credentials
+                key: api_key
+
+    - name: Wait for Commit Job
+      action: script
+      timeout: 600s
+      config:
+        image: helios/paloalto-sdk:v1.0.0
+        script: wait_job.py
+        args:
+          - --host={{device}}
+          - --job-id={{steps['Commit Configuration'].output.job_id}}
+        env:
+          - name: PANOS_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: paloalto-credentials
+                key: api_key
+
+    - name: Verify Commit Success
+      action: script
+      timeout: 30s
+      config:
+        image: helios/paloalto-sdk:v1.0.0
+        script: verify_commit.py
+        args:
+          - --host={{device}}
+        env:
+          - name: PANOS_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: paloalto-credentials
+                key: api_key
+
+    - name: Notify Success
+      action: notify
+      config:
+        channel: slack
+        message: |
+          :white_check_mark: *Palo Alto Commit Successful*
+
+          *Firewall:* `{{device}}`
+          *Description:* {{description}}
+          *Triggered by:* {{.triggeredBy}}
+          *Approved by:* {{.status.approvedBy}}
+          *Duration:* {{.status.duration}}
+
+  rollback:
+    - name: Revert to Previous Config
+      action: script
+      timeout: 300s
+      config:
+        image: helios/paloalto-sdk:v1.0.0
+        script: revert_config.py
+        args:
+          - --host={{device}}
+          - --reason="Rollback from failed commit"
+        env:
+          - name: PANOS_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: paloalto-credentials
+                key: api_key

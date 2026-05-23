@@ -1,0 +1,202 @@
+# Drain Interface Traffic
+# Gracefully remove traffic before maintenance
+apiVersion: helios.io/v1alpha1
+kind: Runbook
+metadata:
+  name: drain-interface
+  namespace: helios-automation
+  labels:
+    helios.io/category: interface
+    helios.io/use-case: maintenance
+spec:
+  name: Drain Interface Traffic
+  description: |
+    Gracefully drains traffic from an interface before maintenance.
+
+    This runbook:
+    1. Sets interface description to indicate maintenance
+    2. Adjusts IGP metric to divert traffic (OSPF cost / IS-IS metric)
+    3. Waits for traffic to drain (configurable)
+    4. Optionally disables the interface
+
+    USE CASES:
+    - Fiber cut scheduled maintenance
+    - Optics replacement
+    - Cable re-routing
+    - Line card maintenance
+
+    PRE-REQUISITES:
+    - Alternate path must exist
+    - IGP must be running on this interface
+
+  category: interface
+  riskLevel: medium
+  requiresApproval: true
+  approvers:
+    - type: group
+      name: network-engineer
+  approvalTimeout: "1h"
+  allowedRoles:
+    - network-engineer
+    - network-admin
+  cooldown: "10m"
+
+  parameters:
+    - name: device
+      type: device
+      required: true
+      description: Target device hostname
+
+    - name: interface
+      type: interface
+      required: true
+      description: Interface to drain
+
+    - name: routing_protocol
+      type: select
+      required: true
+      description: IGP running on this interface
+      options:
+        - ospf
+        - isis
+
+    - name: drain_metric
+      type: integer
+      required: false
+      default: 65535
+      description: High metric to set (diverts traffic away)
+
+    - name: drain_wait_minutes
+      type: integer
+      required: false
+      default: 5
+      description: Minutes to wait for traffic to drain (1-30)
+      validation: "^([1-9]|[1-2][0-9]|30)$"
+
+    - name: disable_interface
+      type: boolean
+      required: false
+      default: false
+      description: Disable interface after draining
+
+    - name: maintenance_message
+      type: string
+      required: true
+      description: Description to set on interface during maintenance
+
+  steps:
+    - name: Record Current Interface State
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/interfaces/interface[name={{interface}}]/state"
+
+    - name: Record Current Traffic Levels
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/interfaces/interface[name={{interface}}]/state/counters"
+
+    - name: Get Current IGP Metric
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier={{routing_protocol | upper}}]/{{routing_protocol}}/interfaces/interface[name={{interface}}]/state/metric"
+
+    - name: Update Interface Description
+      action: gnmi_set
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/interfaces/interface[name={{interface}}]/config/description"
+            value: "MAINTENANCE: {{maintenance_message}} - {{.triggeredBy}} - {{.startTime}}"
+            encoding: json_ietf
+
+    - name: Set High IGP Metric (OSPF)
+      action: gnmi_set
+      timeout: 15s
+      condition: "{{routing_protocol}} == 'ospf'"
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=OSPF][name=OSPF]/ospfv2/areas/area/interfaces/interface[name={{interface}}]/config/metric"
+            value: "{{drain_metric}}"
+            encoding: json_ietf
+
+    - name: Set High IGP Metric (IS-IS)
+      action: gnmi_set
+      timeout: 15s
+      condition: "{{routing_protocol}} == 'isis'"
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=ISIS][name=ISIS]/isis/interfaces/interface[name={{interface}}]/levels/level[level-number=2]/config/metric"
+            value: "{{drain_metric}}"
+            encoding: json_ietf
+
+    - name: Wait for Traffic to Drain
+      action: wait
+      config:
+        duration: "{{drain_wait_minutes}}m"
+
+    - name: Verify Traffic Reduced
+      action: gnmi_get
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        path: "/interfaces/interface[name={{interface}}]/state/counters/out-octets"
+
+    - name: Disable Interface (Optional)
+      action: gnmi_set
+      timeout: 15s
+      condition: "{{disable_interface}} == true"
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/interfaces/interface[name={{interface}}]/config/enabled"
+            value: false
+            encoding: json_ietf
+
+    - name: Notify Drain Complete
+      action: notify
+      config:
+        channel: slack
+        message: |
+          :construction: *Interface Drained for Maintenance*
+
+          *Device:* `{{device}}`
+          *Interface:* `{{interface}}`
+          *Protocol:* `{{routing_protocol}}`
+          *Metric Set:* `{{drain_metric}}`
+          *Interface Disabled:* `{{disable_interface}}`
+
+          *Maintenance:* {{maintenance_message}}
+          *Triggered by:* {{.triggeredBy}}
+
+          :warning: Remember to run `undrain-interface` when maintenance is complete!
+
+  rollback:
+    - name: Re-enable Interface
+      action: gnmi_set
+      timeout: 15s
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/interfaces/interface[name={{interface}}]/config/enabled"
+            value: true
+            encoding: json_ietf
+
+    - name: Restore Default Metric (OSPF)
+      action: gnmi_set
+      timeout: 15s
+      condition: "{{routing_protocol}} == 'ospf'"
+      config:
+        target: "{{device}}:6030"
+        updates:
+          - path: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=OSPF][name=OSPF]/ospfv2/areas/area/interfaces/interface[name={{interface}}]/config/metric"
+            value: 10
+            encoding: json_ietf
