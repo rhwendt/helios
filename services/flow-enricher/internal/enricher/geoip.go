@@ -48,7 +48,7 @@ func NewGeoIPReader(cityDBPath, asnDBPath string, logger *slog.Logger) (*GeoIPRe
 
 	asnDB, err := maxminddb.Open(asnDBPath)
 	if err != nil {
-		cityDB.Close()
+		_ = cityDB.Close()
 		return nil, fmt.Errorf("opening ASN database: %w", err)
 	}
 

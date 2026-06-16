@@ -14,9 +14,9 @@ import (
 type NotificationType string
 
 const (
-	NotifySlack    NotificationType = "slack"
-	NotifyTeams    NotificationType = "teams"
-	NotifyWebhook  NotificationType = "webhook"
+	NotifySlack   NotificationType = "slack"
+	NotifyTeams   NotificationType = "teams"
+	NotifyWebhook NotificationType = "webhook"
 )
 
 // ApprovalRequest represents a pending approval request.
@@ -74,7 +74,7 @@ func (a *Approver) SendApprovalNotification(ctx context.Context, req ApprovalReq
 	if err != nil {
 		return fmt.Errorf("failed to send notification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("notification webhook returned status %d", resp.StatusCode)

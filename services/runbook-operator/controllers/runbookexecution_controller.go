@@ -9,6 +9,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -85,6 +86,24 @@ func (r *RunbookExecutionReconciler) handlePending(ctx context.Context, log *slo
 func (r *RunbookExecutionReconciler) handlePendingApproval(ctx context.Context, log *slog.Logger, exec *heliosv1alpha1.RunbookExecution) (ctrl.Result, error) {
 	// Check if approved (approvedBy field set externally)
 	if exec.Status.ApprovedBy != "" {
+		// Validate ApprovedBy is in the runbook's Approvers list
+		runbook, err := r.getRunbook(ctx, exec)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		approverValid := false
+		for _, approver := range runbook.Spec.Approvers {
+			if approver.Name == exec.Status.ApprovedBy {
+				approverValid = true
+				break
+			}
+		}
+		if !approverValid {
+			log.Warn("approval rejected: approver not in allowed list", "approvedBy", exec.Status.ApprovedBy)
+			return ctrl.Result{}, r.setPhase(ctx, exec, heliosv1alpha1.PhaseFailed,
+				fmt.Sprintf("approver %q is not in the runbook's approved approvers list", exec.Status.ApprovedBy))
+		}
+
 		log.Info("execution approved", "approvedBy", exec.Status.ApprovedBy)
 		now := metav1.Now()
 		exec.Status.StartTime = &now
@@ -227,6 +246,9 @@ func (r *RunbookExecutionReconciler) setPhase(ctx context.Context, exec *heliosv
 
 func (r *RunbookExecutionReconciler) createExecutorJob(ctx context.Context, exec *heliosv1alpha1.RunbookExecution, jobName string) error {
 	backoffLimit := int32(0)
+	runAsNonRoot := true
+	readOnlyRootFS := true
+	allowPrivEsc := false
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -236,16 +258,47 @@ func (r *RunbookExecutionReconciler) createExecutorJob(ctx context.Context, exec
 				"app.kubernetes.io/instance":  exec.Name,
 				"app.kubernetes.io/component": "automation",
 			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: exec.APIVersion,
+					Kind:       exec.Kind,
+					Name:       exec.Name,
+					UID:        exec.UID,
+				},
+			},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backoffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: &runAsNonRoot,
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeRuntimeDefault,
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name:  "executor",
 							Image: r.ExecutorImage,
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: &allowPrivEsc,
+								ReadOnlyRootFilesystem:   &readOnlyRootFS,
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("256Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("64Mi"),
+								},
+							},
 							Env: []corev1.EnvVar{
 								{
 									Name:  "EXECUTION_NAME",

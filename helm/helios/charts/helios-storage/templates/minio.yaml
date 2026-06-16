@@ -21,6 +21,7 @@ spec:
         {{- include "helios.labels" . | nindent 8 }}
         app.kubernetes.io/component: minio
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -29,7 +30,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: minio
-          image: quay.io/minio/minio:latest
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy | default "IfNotPresent" }}
           args:
             - server
             - http://{{ include "helios.fullname" . }}-minio-{0...{{ sub (.Values.minio.replicas | default 4 | int) 1 }}}.{{ include "helios.fullname" . }}-minio.helios-storage.svc.cluster.local/data
@@ -166,7 +168,8 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: mc
-          image: quay.io/minio/mc:latest
+          image: "{{ .Values.minio.mcImage.repository }}:{{ .Values.minio.mcImage.tag }}"
+          imagePullPolicy: {{ .Values.minio.mcImage.pullPolicy | default "IfNotPresent" }}
           command:
             - /bin/sh
             - -c

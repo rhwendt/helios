@@ -24,7 +24,8 @@ thanos:
       fiveMin: 30d
       oneHour: 90d
   objstoreSecret:
-    external: false
+    # Set to false only for development. In production, use External Secrets Operator.
+    external: true
     storeRef: cluster-secret-store
     remoteKey: helios/thanos-objstore
     bucket: thanos
@@ -35,6 +36,14 @@ thanos:
 
 minio:
   replicas: 4
+  image:
+    repository: quay.io/minio/minio
+    tag: RELEASE.2024-01-01T00-00-00Z
+    pullPolicy: IfNotPresent
+  mcImage:
+    repository: quay.io/minio/mc
+    tag: RELEASE.2024-01-01T00-00-00Z
+    pullPolicy: IfNotPresent
   erasureCoding: true
   buckets:
     - name: thanos

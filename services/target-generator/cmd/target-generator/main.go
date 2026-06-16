@@ -56,9 +56,6 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
 	// Start metrics server
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
@@ -69,13 +66,19 @@ func main() {
 		}
 	}()
 
-	if err := run(ctx, logger); err != nil {
+	if err := runSync(logger); err != nil {
 		syncErrors.Inc()
 		logger.Error("sync failed", "error", err)
 		os.Exit(1)
 	}
 
 	logger.Info("target sync completed successfully")
+}
+
+func runSync(logger *slog.Logger) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	return run(ctx, logger)
 }
 
 func run(ctx context.Context, logger *slog.Logger) error {

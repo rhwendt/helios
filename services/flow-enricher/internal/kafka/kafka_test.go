@@ -2,18 +2,12 @@ package kafka
 
 import (
 	"context"
-	"log/slog"
-	"os"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
 	flowpb "github.com/rhwendt/helios/services/flow-enricher/internal/proto"
 )
-
-func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-}
 
 func TestConsumerConfig_Defaults(t *testing.T) {
 	tests := []struct {
@@ -204,10 +198,9 @@ func TestProtobuf_MalformedData(t *testing.T) {
 
 func TestMessageHandler_Type(t *testing.T) {
 	// Verify MessageHandler signature is compatible with batch processing
-	var handler MessageHandler
-	handler = func(ctx context.Context, flows []*flowpb.EnrichedFlow) error {
+	handler := MessageHandler(func(ctx context.Context, flows []*flowpb.EnrichedFlow) error {
 		return nil
-	}
+	})
 
 	// Should be callable with nil context and empty slice
 	if err := handler(nil, nil); err != nil {

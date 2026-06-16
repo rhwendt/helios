@@ -24,6 +24,11 @@ spec:
       default/max_memory_usage: 10000000000
       default/max_execution_time: 300
     users:
+      default/password_sha256_hex:
+        valueFrom:
+          secretKeyRef:
+            name: {{ include "helios.fullname" . }}-clickhouse-credentials
+            key: password-sha256
       default/networks/ip:
         - "10.0.0.0/8"
         - "172.16.0.0/12"

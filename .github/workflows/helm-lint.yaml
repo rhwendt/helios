@@ -21,7 +21,11 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo add minio https://charts.min.io/
           helm repo add strimzi https://strimzi.io/charts/
+          helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator/
           helm repo update
+
+      - name: Build Helm dependencies
+        run: helm dependency build helm/helios/
 
       - name: Helm lint umbrella chart
         run: helm lint helm/helios/
@@ -34,7 +38,7 @@ jobs:
           done
 
       - name: Install helm-unittest plugin
-        run: helm plugin install https://github.com/helm-unittest/helm-unittest.git
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest.git --version v0.5.2
 
       - name: Run helm unittest
         run: |

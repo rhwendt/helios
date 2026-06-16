@@ -32,27 +32,32 @@ func main() {
 		os.Exit(1)
 	}
 
+	exitCode, err := run(log, executionName, executionNamespace)
+	if err != nil {
+		log.Error("execution failed", "error", err)
+	}
+	os.Exit(exitCode)
+}
+
+func run(log *slog.Logger, executionName, executionNamespace string) (int, error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
 	// Set up Kubernetes client
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		log.Error("failed to get in-cluster config", "error", err)
-		os.Exit(1)
+		return 1, fmt.Errorf("failed to get in-cluster config: %w", err)
 	}
 
 	k8sClient, err := client.New(config, client.Options{})
 	if err != nil {
-		log.Error("failed to create k8s client", "error", err)
-		os.Exit(1)
+		return 1, fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
 	// Fetch execution
 	var execution heliosv1alpha1.RunbookExecution
 	if err := k8sClient.Get(ctx, types.NamespacedName{Name: executionName, Namespace: executionNamespace}, &execution); err != nil {
-		log.Error("failed to get execution", "error", err)
-		os.Exit(1)
+		return 1, fmt.Errorf("failed to get execution: %w", err)
 	}
 
 	// Fetch referenced runbook
@@ -62,8 +67,7 @@ func main() {
 	}
 	var runbook heliosv1alpha1.Runbook
 	if err := k8sClient.Get(ctx, types.NamespacedName{Name: execution.Spec.RunbookRef.Name, Namespace: rbNS}, &runbook); err != nil {
-		log.Error("failed to get runbook", "error", err)
-		os.Exit(1)
+		return 1, fmt.Errorf("failed to get runbook: %w", err)
 	}
 
 	auditLogger := audit.NewLogger(log)
@@ -149,7 +153,7 @@ func main() {
 		log.Error("failed to update final execution status", "error", err)
 	}
 
-	os.Exit(exitCode)
+	return exitCode, nil
 }
 
 func executeStep(ctx context.Context, log *slog.Logger, step heliosv1alpha1.RunbookStep, params map[string]interface{}, tmplEngine *template.Engine, dryRun bool) (string, error) {
@@ -181,7 +185,10 @@ func executeGNMISet(ctx context.Context, log *slog.Logger, step heliosv1alpha1.R
 	}
 
 	if dryRun {
-		configJSON, _ := json.Marshal(config)
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal config for dry run: %w", err)
+		}
 		return fmt.Sprintf("[DRY RUN] Would execute gNMI Set on %s: %s", target, string(configJSON)), nil
 	}
 
@@ -189,7 +196,7 @@ func executeGNMISet(ctx context.Context, log *slog.Logger, step heliosv1alpha1.R
 	if err := client.Connect(ctx); err != nil {
 		return "", fmt.Errorf("failed to connect to %s: %w", target, err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	path, _ := config["path"].(string)
 	value := config["value"]
@@ -218,7 +225,7 @@ func executeGNMIGet(ctx context.Context, log *slog.Logger, step heliosv1alpha1.R
 	if err := client.Connect(ctx); err != nil {
 		return "", fmt.Errorf("failed to connect to %s: %w", target, err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	path, _ := config["path"].(string)
 	resp, err := client.Get(ctx, []string{path})

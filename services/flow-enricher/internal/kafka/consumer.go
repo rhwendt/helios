@@ -68,13 +68,16 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 	c.logger.Info("Kafka consumer started", "topic", c.topic, "batch_size", c.batchSize)
 
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			c.logger.Info("shutting down Kafka consumer")
-			c.consumer.Close()
+			_ = c.consumer.Close()
 			return ctx.Err()
-		default:
+		case <-ticker.C:
 			batch, err := c.pollBatch(ctx)
 			if err != nil {
 				c.logger.Error("error polling batch", "error", err)

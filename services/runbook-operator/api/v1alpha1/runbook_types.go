@@ -41,18 +41,18 @@ const (
 
 // RunbookSpec defines the desired state of Runbook.
 type RunbookSpec struct {
-	Name             string            `json:"name"`
-	Description      string            `json:"description,omitempty"`
-	Category         RunbookCategory   `json:"category"`
-	RiskLevel        RiskLevel         `json:"riskLevel"`
-	RequiresApproval bool              `json:"requiresApproval,omitempty"`
-	Approvers        []Approver        `json:"approvers,omitempty"`
-	ApprovalTimeout  string            `json:"approvalTimeout,omitempty"`
-	AllowedRoles     []string          `json:"allowedRoles,omitempty"`
-	Cooldown         string            `json:"cooldown,omitempty"`
-	Parameters       []Parameter       `json:"parameters,omitempty"`
-	Steps            []RunbookStep     `json:"steps"`
-	Rollback         []RunbookStep     `json:"rollback,omitempty"`
+	Name             string          `json:"name"`
+	Description      string          `json:"description,omitempty"`
+	Category         RunbookCategory `json:"category"`
+	RiskLevel        RiskLevel       `json:"riskLevel"`
+	RequiresApproval bool            `json:"requiresApproval,omitempty"`
+	Approvers        []Approver      `json:"approvers,omitempty"`
+	ApprovalTimeout  string          `json:"approvalTimeout,omitempty"`
+	AllowedRoles     []string        `json:"allowedRoles,omitempty"`
+	Cooldown         string          `json:"cooldown,omitempty"`
+	Parameters       []Parameter     `json:"parameters,omitempty"`
+	Steps            []RunbookStep   `json:"steps"`
+	Rollback         []RunbookStep   `json:"rollback,omitempty"`
 }
 
 // Approver defines an approver for a runbook.

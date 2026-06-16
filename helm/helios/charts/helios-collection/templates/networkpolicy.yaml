@@ -54,6 +54,14 @@ spec:
       ports:
         - port: 161
           protocol: UDP
+    # ICMP to network devices (blackbox exporter ping probes)
+    # Note: K8s NetworkPolicy does not support ICMP protocol in ports.
+    # An egress rule without ports allows all protocols including ICMP.
+    - to:
+        {{- range .Values.networkPolicy.allowedCIDRs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
     # Prometheus remote-write
     - to:
         - namespaceSelector:

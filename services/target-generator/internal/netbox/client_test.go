@@ -16,13 +16,13 @@ func testLogger() *slog.Logger {
 
 func TestClient_ListMonitoredDevices(t *testing.T) {
 	tests := []struct {
-		name        string
-		handler     http.HandlerFunc
-		wantCount   int
-		wantErr     bool
-		wantName    string
-		wantGNMI    bool
-		wantSNMP    bool
+		name      string
+		handler   http.HandlerFunc
+		wantCount int
+		wantErr   bool
+		wantName  string
+		wantGNMI  bool
+		wantSNMP  bool
 	}{
 		{
 			name: "successful response with two devices",
@@ -57,7 +57,7 @@ func TestClient_ListMonitoredDevices(t *testing.T) {
 					},
 				}
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(resp)
+				_ = json.NewEncoder(w).Encode(resp)
 			},
 			wantCount: 2,
 			wantName:  "router-1",
@@ -71,7 +71,7 @@ func TestClient_ListMonitoredDevices(t *testing.T) {
 					"count": 0, "next": nil, "results": []interface{}{},
 				}
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(resp)
+				_ = json.NewEncoder(w).Encode(resp)
 			},
 			wantCount: 0,
 		},
@@ -86,7 +86,7 @@ func TestClient_ListMonitoredDevices(t *testing.T) {
 			name: "invalid JSON returns error",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte("{invalid json"))
+				_, _ = w.Write([]byte("{invalid json"))
 			},
 			wantErr: true,
 		},
@@ -154,7 +154,7 @@ func TestClient_Pagination(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -178,12 +178,12 @@ func TestClient_AuthorizationHeader(t *testing.T) {
 		receivedAuth = r.Header.Get("Authorization")
 		resp := map[string]interface{}{"count": 0, "next": nil, "results": []interface{}{}}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "my-secret-token", testLogger())
-	client.ListMonitoredDevices(context.Background())
+	_, _ = client.ListMonitoredDevices(context.Background())
 
 	if receivedAuth != "Token my-secret-token" {
 		t.Errorf("Authorization header = %q, want %q", receivedAuth, "Token my-secret-token")

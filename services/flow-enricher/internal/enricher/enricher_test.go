@@ -9,18 +9,6 @@ import (
 	flowpb "github.com/rhwendt/helios/services/flow-enricher/internal/proto"
 )
 
-// mockGeoIPReader implements the same interface as GeoIPReader for testing.
-type mockGeoIPReader struct {
-	results map[string]GeoIPResult
-}
-
-func (m *mockGeoIPReader) Lookup(ip net.IP) GeoIPResult {
-	if r, ok := m.results[ip.String()]; ok {
-		return r
-	}
-	return GeoIPResult{}
-}
-
 func newTestLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 }
@@ -40,16 +28,16 @@ func ipToUint32(ip net.IP) uint32 {
 
 func TestEnrichFlow_NetBoxCacheLookup(t *testing.T) {
 	tests := []struct {
-		name           string
-		exporterIP     uint32
-		inIf           uint32
-		outIf          uint32
-		cache          map[string]DeviceMetadata
-		wantName       string
-		wantSite       string
-		wantRole       string
-		wantInIfName   string
-		wantOutIfName  string
+		name          string
+		exporterIP    uint32
+		inIf          uint32
+		outIf         uint32
+		cache         map[string]DeviceMetadata
+		wantName      string
+		wantSite      string
+		wantRole      string
+		wantInIfName  string
+		wantOutIfName string
 	}{
 		{
 			name:       "enrich flow with device metadata from NetBox cache",

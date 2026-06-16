@@ -1,5 +1,9 @@
 targetGenerator:
   schedule: "*/5 * * * *"
+  image:
+    repository: ghcr.io/rhwendt/helios/target-generator
+    tag: latest
+    pullPolicy: IfNotPresent
 
 netbox:
   url: ""

@@ -74,12 +74,23 @@ func (r *RunbookReconciler) validateRunbook(rb *heliosv1alpha1.Runbook) error {
 	if rb.Spec.RequiresApproval && len(rb.Spec.Approvers) == 0 {
 		return fmt.Errorf("approvers required when requiresApproval is true")
 	}
+	allowedActions := map[heliosv1alpha1.StepAction]bool{
+		heliosv1alpha1.ActionGNMISet:       true,
+		heliosv1alpha1.ActionGNMIGet:       true,
+		heliosv1alpha1.ActionGNMISubscribe: true,
+		heliosv1alpha1.ActionWait:          true,
+		heliosv1alpha1.ActionNotify:        true,
+		heliosv1alpha1.ActionCondition:     true,
+	}
 	for i, step := range rb.Spec.Steps {
 		if step.Name == "" {
 			return fmt.Errorf("step %d: name is required", i)
 		}
 		if step.Action == "" {
 			return fmt.Errorf("step %d: action is required", i)
+		}
+		if !allowedActions[step.Action] {
+			return fmt.Errorf("step %d: action %q is not allowed", i, step.Action)
 		}
 	}
 	return nil

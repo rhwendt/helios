@@ -25,3 +25,21 @@ dependencies:
     version: "~0.23"
     repository: "https://docs.altinity.com/clickhouse-operator/"
     condition: clickhouse-operator.enabled
+  - name: helios-automation
+    version: "0.1.0"
+    repository: "file://charts/helios-automation"
+  - name: helios-collection
+    version: "0.1.0"
+    repository: "file://charts/helios-collection"
+  - name: helios-flows
+    version: "0.1.0"
+    repository: "file://charts/helios-flows"
+  - name: helios-integration
+    version: "0.1.0"
+    repository: "file://charts/helios-integration"
+  - name: helios-storage
+    version: "0.1.0"
+    repository: "file://charts/helios-storage"
+  - name: helios-visualization
+    version: "0.1.0"
+    repository: "file://charts/helios-visualization"
